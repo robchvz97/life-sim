@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Sim v0.1 — Vida Artificial 3D</title>
+  <style>
+    :root{
+      --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
+      --accent:#7de38f; --danger:#ff7b7b; --line:#263444;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    #app{position:fixed;inset:0}
+    #hud{
+      position:fixed;left:14px;top:14px;width:min(340px,calc(100vw - 28px));
+      background:rgba(17,25,35,.86);backdrop-filter:blur(10px);
+      border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px;z-index:10;
+      box-shadow:0 10px 30px rgba(0,0,0,.28)
+    }
+    h1{font-size:16px;margin:0 0 8px;font-weight:700}
+    .sub{font-size:12px;color:var(--muted);line-height:1.4;margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-bottom:12px}
+    .stat{font-size:12px;color:var(--muted)}
+    .stat b{display:block;color:var(--text);font-size:14px;margin-top:2px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button,select,input[type="range"]{font:inherit}
+    button{
+      background:#172434;color:var(--text);border:1px solid #30465d;border-radius:10px;
+      padding:8px 10px;cursor:pointer;font-size:12px
+    }
+    button:hover{border-color:#4d6c89}
+    button.primary{background:#17351f;border-color:#2c6c3a;color:#dfffe6}
+    button.danger{background:#3a1f24;border-color:#78404c}
+    .controls{display:grid;grid-template-columns:1fr;gap:9px}
+    label{font-size:11px;color:var(--muted)}
+    .range{display:grid;grid-template-columns:90px 1fr 42px;align-items:center;gap:8px}
+    .range output{text-align:right;font-size:11px;color:var(--text)}
+    input[type="range"]{width:100%}
+    #notice{
+      position:fixed;right:14px;bottom:14px;max-width:360px;
+      background:rgba(17,25,35,.86);border:1px solid var(--line);border-radius:12px;
+      padding:10px 12px;font-size:11px;color:var(--muted);z-index:10;line-height:1.45
+    }
+    #selected{
+      position:fixed;right:14px;top:14px;width:280px;max-width:calc(100vw - 28px);
+      background:rgba(17,25,35,.86);border:1px solid var(--line);border-radius:14px;
+      padding:12px;z-index:10;display:none
+    }
+    #selected .name{font-weight:700;font-size:13px;margin-bottom:6px}
+    #selected .mini{font-size:11px;color:var(--muted);line-height:1.5;white-space:pre-line}
+    canvas{display:block}
+    @media(max-width:760px){
+      #selected{top:auto;bottom:14px;right:14px}
+      #notice{display:none}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud">
+  <h1>Life Sim v0.1</h1>
+  <div class="sub">Vida artificial 3D. Reglas universales mínimas, sin órdenes del tipo “construye”, “haz amigos” o “ve a comer”.</div>
+
+  <div class="grid">
+    <div class="stat">Población<b id="pop">0</b></div>
+    <div class="stat">Generación máx.<b id="gen">0</b></div>
+    <div class="stat">Nacimientos<b id="births">0</b></div>
+    <div class="stat">Muertes<b id="deaths">0</b></div>
+    <div class="stat">Edad del mundo<b id="age">0.0</b></div>
+    <div class="stat">Alimento<b id="food">0</b></div>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <button id="pause" class="primary">Pausar</button>
+      <button id="spawn">+ criatura</button>
+      <button id="foodBtn">+ alimento</button>
+      <button id="reset" class="danger">Reiniciar</button>
+    </div>
+
+    <div class="range">
+      <label for="speed">Velocidad</label>
+      <input id="speed" type="range" min="0.25" max="8" value="1" step="0.25">
+      <output id="speedOut">1×</output>
+    </div>
+
+    <div class="range">
+      <label for="mutation">Mutación</label>
+      <input id="mutation" type="range" min="0.01" max="0.35" value="0.10" step="0.01">
+      <output id="mutationOut">10%</output>
+    </div>
+
+    <div class="range">
+      <label for="sun">Luz solar</label>
+      <input id="sun" type="range" min="0.2" max="1.8" value="1.0" step="0.05">
+      <output id="sunOut">1.00</output>
+    </div>
+  </div>
+</div>
+
+<div id="selected">
+  <div class="name" id="selName"></div>
+  <div class="mini" id="selInfo"></div>
+</div>
+
+<div id="notice">
+  Arrastra para rotar, rueda para zoom y haz clic en una criatura para inspeccionarla.
+  Los “cerebros” son redes neuronales pequeñas heredables con mutación + memoria recurrente.
+  Cuando una criatura muere, su energía vuelve al mundo como nutrientes.
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js"
+  }
+}
+</script>
+<script type="module" src="./simulation.js"></script>
+</body>
+</html>
