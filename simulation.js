@@ -36,7 +36,7 @@ function addDemographicDiagnostics(){
 addDemographicDiagnostics();
 
 try{
-  const {loadLifeSim1773}=await import('./patch-v17.7.3.js?v=17.7.3b');
+  const {loadLifeSim1773}=await import('./patch-v17.7.3.js?v=17.7.3c');
   await loadLifeSim1773();
 }catch(err){
   console.error('[Life Sim v17.7.3] error de arranque',err);
