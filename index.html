@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Sim v17.3.6 — Natural Viability & Hydrology</title>
+  <style>
+    :root{
+      --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
+      --accent:#7de38f; --danger:#ff7b7b; --line:#263444;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    #app{position:fixed;inset:0}
+    #hud{
+      position:fixed;left:14px;top:14px;width:min(430px,calc(100vw - 28px));
+      background:rgba(17,25,35,.91);backdrop-filter:blur(10px);
+      border:1px solid var(--line);border-radius:14px;padding:14px;z-index:10;
+      box-shadow:0 10px 30px rgba(0,0,0,.28);max-height:calc(100vh - 28px);overflow:auto
+    }
+    h1{font-size:16px;margin:0 0 7px;font-weight:760}
+    .sub{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-bottom:12px}
+    .sectionTitle{
+      margin:11px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+      color:#7f93a7;font-weight:800
+    }
+    .essentialGrid{margin-bottom:8px}
+    #advancedToggle{
+      width:100%;display:flex;align-items:center;justify-content:space-between;
+      margin:7px 0 10px;background:#121f2b;color:#cdd9e5;border-color:#2a3d50
+    }
+    #advancedToggle .chev{font-size:13px;transition:transform .16s ease}
+    #advancedToggle.open .chev{transform:rotate(180deg)}
+    #advancedStats{
+      display:none;padding-top:2px;border-top:1px solid rgba(80,105,128,.25);
+      margin-top:2px
+    }
+    #advancedStats.open{display:block}
+    #advancedStats .grid{margin-top:7px}
+    .advancedNote{
+      font-size:10px;color:var(--muted);line-height:1.45;margin:2px 0 8px
+    }
+    .stat{font-size:11px;color:var(--muted)}
+    .stat b{display:block;color:var(--text);font-size:14px;margin-top:2px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button,input[type="range"]{font:inherit}
+    button{
+      background:#172434;color:var(--text);border:1px solid #30465d;border-radius:10px;
+      padding:8px 10px;cursor:pointer;font-size:12px
+    }
+    button:hover{border-color:#4d6c89}
+    button.primary{background:#17351f;border-color:#2c6c3a;color:#dfffe6}
+    button.danger{background:#3a1f24;border-color:#78404c}
+    button.soundOn{background:#302a13;border-color:#7c6c27;color:#fff4b6}
+    .controls{display:grid;gap:9px}
+    .range{display:grid;grid-template-columns:102px 1fr 46px;align-items:center;gap:8px}
+    .range label{font-size:11px;color:var(--muted)}
+    .range output{text-align:right;font-size:11px;color:var(--text)}
+    input[type="range"]{width:100%}
+    .legend{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:10px;color:var(--muted);line-height:1.5}
+    .hudHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+    .hudHeader h1{margin:0}
+    #hudToggle{padding:5px 9px;min-width:34px;font-size:16px;line-height:1}
+    #hud.collapsed{
+      width:50px;height:46px;padding:6px;overflow:hidden;border-radius:13px;
+      max-height:46px
+    }
+    #hud.collapsed .hudHeader{margin:0;height:34px;justify-content:center}
+    #hud.collapsed .hudHeader h1{display:none}
+    #hud.collapsed > :not(.hudHeader){display:none}
+    #hud.collapsed #hudToggle{width:38px;height:34px;padding:0}
+    #selected{
+      position:fixed;right:14px;top:14px;width:365px;max-width:calc(100vw - 28px);
+      background:rgba(17,25,35,.93);border:1px solid var(--line);border-radius:14px;
+      padding:12px;z-index:10;display:none;max-height:calc(100vh - 28px);overflow:auto
+    }
+    .selectedHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    #selected .name{font-weight:760;font-size:13px}
+    #selectedClose{padding:4px 8px;font-size:15px;line-height:1}
+    #selected .mini{font-size:11px;color:var(--muted);line-height:1.5;white-space:pre-line}
+    #notice{
+      position:fixed;right:14px;bottom:14px;max-width:520px;
+      background:rgba(17,25,35,.91);border:1px solid var(--line);border-radius:12px;
+      padding:10px 12px;font-size:11px;color:var(--muted);z-index:10;line-height:1.45
+    }
+    #discoveries{
+      position:fixed;right:14px;bottom:92px;width:360px;max-width:calc(100vw - 28px);
+      max-height:330px;overflow:hidden;background:rgba(17,25,35,.94);border:1px solid var(--line);
+      border-radius:14px;z-index:12;box-shadow:0 10px 30px rgba(0,0,0,.28);backdrop-filter:blur(10px)
+    }
+    #discoveries .discHead{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid var(--line)}
+    #discoveries .discHead b{font-size:12px}
+    #discToggle{padding:3px 8px}
+    #discoveryList{max-height:275px;overflow:auto;padding:7px 9px}
+    .discEvent{padding:7px 5px;border-bottom:1px solid rgba(80,105,128,.22);font-size:10px;line-height:1.4}
+    .discEvent:last-child{border-bottom:0}
+    .discEvent .discTime{color:var(--accent);font-weight:700;margin-right:6px}
+    .discEvent .discTitle{color:var(--text);font-weight:700}
+    .discEvent .discDetail{color:var(--muted);margin-top:2px}
+    #discoveries.collapsed{width:auto;max-height:42px}
+    #discoveries.collapsed #discoveryList{display:none}
+    #extinction{
+      position:fixed;inset:0;display:none;place-items:center;z-index:40;
+      background:rgba(4,8,12,.72);backdrop-filter:blur(5px)
+    }
+    #extinction .card{
+      width:min(520px,calc(100vw - 32px));background:#111923;border:1px solid #5b2f38;
+      border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center
+    }
+    #extinction h2{margin:0 0 8px;font-size:24px}
+    #extinction p{color:var(--muted);font-size:13px;line-height:1.5}
+    #extinctionStats{font-size:12px;color:#dce7ef;line-height:1.7;margin:12px 0}
+    canvas{display:block}
+    #mobileNav{
+      display:none;position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));
+      z-index:24;align-items:flex-end;gap:9px;pointer-events:none;user-select:none;-webkit-user-select:none
+    }
+    #movePad{
+      width:112px;height:112px;border-radius:50%;position:relative;pointer-events:auto;touch-action:none;
+      border:1px solid rgba(180,205,225,.28);background:rgba(11,20,29,.46);backdrop-filter:blur(8px);
+      box-shadow:0 8px 24px rgba(0,0,0,.22)
+    }
+    #movePad::before,#movePad::after{content:"";position:absolute;background:rgba(190,215,232,.12)}
+    #movePad::before{width:1px;height:76%;left:50%;top:12%}
+    #movePad::after{height:1px;width:76%;top:50%;left:12%}
+    #moveKnob{
+      position:absolute;width:44px;height:44px;border-radius:50%;left:34px;top:34px;
+      background:rgba(199,226,244,.26);border:1px solid rgba(220,240,255,.46);
+      box-shadow:0 4px 14px rgba(0,0,0,.28);transform:translate(0,0)
+    }
+    #mobileCenter{
+      pointer-events:auto;touch-action:manipulation;width:46px;height:46px;border-radius:50%;padding:0;
+      background:rgba(17,30,42,.82);backdrop-filter:blur(8px);font-size:19px
+    }
+    #mobileGestureHint{
+      position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);
+      display:none;z-index:22;padding:6px 9px;border-radius:10px;background:rgba(11,20,29,.55);
+      color:#a9b8c6;font-size:9px;pointer-events:none;backdrop-filter:blur(6px)
+    }
+    @media(max-width:850px){
+      #hud{left:8px;top:8px;width:min(365px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
+      #hud.collapsed{width:50px;height:46px}
+      #selected{
+        top:auto;bottom:8px;left:8px;right:8px;
+        width:auto;max-width:none;max-height:48vh
+      }
+      #notice{display:none}
+      #discoveries{right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));max-height:250px}
+      #discoveryList{max-height:195px}
+    }
+    @media (pointer:coarse) and (max-width:900px){
+      #mobileNav{display:flex}
+      #mobileGestureHint{display:block}
+      canvas{touch-action:none}
+      #discoveries.collapsed{max-width:54px}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<div id="mobileNav" aria-label="Navegación móvil">
+  <div id="movePad" aria-label="Mover cámara"><div id="moveKnob"></div></div>
+  <button id="mobileCenter" title="Centrar vista">⌖</button>
+</div>
+<div id="mobileGestureHint">1 dedo rota · 2 dedos desplazan/pellizcan · joystick mueve</div>
+
+<div id="hud">
+  <div class="hudHeader">
+    <h1>Life Sim v17.3.6 — Natural Viability & Hydrology</h1>
+    <button id="hudToggle" title="Minimizar panel">−</button>
+  </div>
+  <div class="sub">
+    Cohesión social y estabilidad demográfica: los vínculos repetidos ganan peso, la ayuda entre individuos conocidos puede consolidarse y la reproducción responde mejor a recursos, reservas energéticas y reemplazo natural.
+  </div>
+
+  <div class="sectionTitle">Salud del mundo</div>
+  <div class="grid essentialGrid">
+    <div class="stat">Población<b id="pop">0</b></div>
+    <div class="stat">Individuos fértiles<b id="fertileCount">0</b></div>
+    <div class="stat">Balance poblacional<b id="popBalance">0</b></div>
+    <div class="stat">Energía promedio<b id="avgEnergy">0</b></div>
+    <div class="stat">Salud promedio<b id="avgHealth">0</b></div>
+    <div class="stat">Riesgo demográfico<b id="demographicRisk">estable</b></div>
+  </div>
+  <div class="sectionTitle">Evolución y cultura</div>
+  <div class="grid essentialGrid">
+    <div class="stat">Generación máx.<b id="gen">0</b></div>
+    <div class="stat">Mayor asentamiento<b id="settlementSize">0</b></div>
+    <div class="stat">Comprensión comunicativa<b id="languageScore">0</b></div>
+    <div class="stat">Procedimientos tecnológicos<b id="techProcedures">0</b></div>
+    <div class="stat">Agua almacenada<b id="storedWater">0</b></div>
+  </div>
+  <div class="sectionTitle">Sociedad</div>
+  <div class="grid essentialGrid">
+    <div class="stat">Grupos sociales<b id="socialGroups">0</b></div>
+    <div class="stat">Relaciones recíprocas<b id="reciprocalLinks">0</b></div>
+    <div class="stat">Intercambio regional<b id="regionalTrade">0</b></div>
+  </div>
+  <button id="advancedToggle" aria-expanded="false"><span>Diagnóstico avanzado</span><span class="chev">⌄</span></button>
+  <div id="advancedStats">
+    <div class="advancedNote">Contadores técnicos y de depuración. Ábrelo cuando una métrica esencial se vea extraña o quieras investigar un sistema concreto.</div>
+    <div class="grid">
+    <div class="stat">Nacimientos naturales<b id="births">0</b></div>
+    <div class="stat">Muertes<b id="deaths">0</b></div>
+    <div class="stat">Edad del mundo<b id="age">0.0</b></div>
+    <div class="stat">Alimento<b id="food">0</b></div>
+    <div class="stat">Materiales<b id="materials">0</b></div>
+    <div class="stat">Estructuras<b id="structures">0</b></div>
+    <div class="stat">Artefactos compuestos<b id="artifacts">0</b></div>
+    <div class="stat">Complejidad material<b id="technologyIndex">0</b></div>
+    <div class="stat">Combustiones activas<b id="activeCombustions">0</b></div>
+    <div class="stat">Transformaciones térmicas<b id="thermalTransforms">0</b></div>
+    <div class="stat">Marcas persistentes<b id="worldMarks">0</b></div>
+    <div class="stat">Símbolos externos compartidos<b id="sharedMarks">0</b></div>
+    <div class="stat">Técnicas motoras culturales<b id="motorTechniques">0</b></div>
+    <div class="stat">Imitación motora<b id="motorImitations">0</b></div>
+    <div class="stat">Apareamientos acumulados<b id="activePairs">0</b></div>
+    <div class="stat">Transferencias recientes<b id="recentTransfers">0</b></div>
+    <div class="stat">Reciprocidad promedio<b id="reciprocityScore">0</b></div>
+    <div class="stat">Estación<b id="seasonLabel">—</b></div>
+    <div class="stat">Objetos con capacidad<b id="containers">0</b></div>
+    <div class="stat">Potencial mecánico<b id="mechanisms">0</b></div>
+    <div class="stat">Moldeados físicos<b id="shapingEvents">0</b></div>
+    <div class="stat">Procedimientos culturales<b id="procedures">0</b></div>
+    <div class="stat">Procedimientos copiados<b id="procedureCopies">0</b></div>
+    <div class="stat">Objetos con agua<b id="waterContainers">0</b></div>
+    <div class="stat">Centros sociales recordados<b id="socialHubs">0</b></div>
+    <div class="stat">Contactos recipiente-agua<b id="waterContacts">0</b></div>
+    <div class="stat">Máx. agua en un objeto<b id="maxWaterFill">0</b></div>
+    <div class="stat">Lluvia actual<b id="rainState">seca</b></div>
+    <div class="stat">Captaciones de lluvia<b id="rainCaptures">0</b></div>
+    <div class="stat">Símbolos compartidos<b id="sharedTokens">0</b></div>
+    <div class="stat">Dialectos detectados<b id="dialects">0</b></div>
+    <div class="stat">Memorias espaciales<b id="memories">0</b></div>
+    <div class="stat">Celdas exploradas<b id="cells">0</b></div>
+    <div class="stat">Vínculos positivos<b id="positiveBonds">0</b></div>
+    <div class="stat">Rivalidades<b id="rivalries">0</b></div>
+    <div class="stat">Futuros simulados<b id="mentalSims">0</b></div>
+    <div class="stat">Secuencias aprendidas<b id="sequences">0</b></div>
+    <div class="stat">Imitaciones<b id="imitations">0</b></div>
+    <div class="stat">Neuronas promedio<b id="avgNeurons">0</b></div>
+    <div class="stat">Conexiones activas prom.<b id="avgConnections">0</b></div>
+    <div class="stat">Topologías distintas<b id="topologyDiversity">0</b></div>
+    <div class="stat">Error predictivo prom.<b id="predictionError">0</b></div>
+    <div class="stat">Desarrollo promedio<b id="avgDevelopment">0</b></div>
+    <div class="stat">Origen actual<b id="originCount">1</b></div>
+    <div class="stat">Estado del linaje<b id="lineageState">vivo</b></div>
+    <div class="stat">Músculo promedio<b id="avgMuscle">0</b></div>
+    <div class="stat">Grasa promedio<b id="avgFat">0</b></div>
+    <div class="stat">Tamaño corporal prom.<b id="avgBody">0</b></div>
+    <div class="stat">Patrones de piel<b id="skinPatterns">0</b></div>
+    <div class="stat">Curvatura prom.<b id="avgCurve">0</b></div>
+    <div class="stat">Señales táctiles<b id="touchCount">0</b></div>
+    <div class="stat">Dolor promedio<b id="avgPain">0</b></div>
+    <div class="stat">Reflejos<b id="reflexCount">0</b></div>
+    <div class="stat">Nac. naturales últimos 100<b id="recentBirths">0</b></div>
+    <div class="stat">Muertes últimos 100<b id="recentDeaths">0</b></div>
+    <div class="stat">Edad promedio<b id="avgAge">0</b></div>
+    <div class="stat">Embriones dormantes<b id="embryoCount">0</b></div>
+    <div class="stat">Archivo evolutivo<b id="archiveCount">0</b></div>
+    <div class="stat">Recolonizaciones<b id="recolonizations">0</b></div>
+    <div class="stat">Comidas últimos 100<b id="recentMeals">0</b></div>
+    <div class="stat">Rescate demográfico<b id="rescueState">inactivo</b></div>
+    <div class="stat">Individuos de rescate<b id="rescueInsertions">0</b></div>
+    <div class="stat">Rescates últimos 100<b id="recentRescues">0</b></div>
+    <div class="stat">Agua nueva adquirida<b id="newWaterAcquired">0</b></div>
+    <div class="stat">Agua heredada al cargar<b id="inheritedWater">0</b></div>
+    <div class="stat">Persistencia<b id="persistState">iniciando…</b></div>
+    <div class="stat">Último guardado<b id="lastSave">—</b></div>
+    <div class="stat">Tiempo recuperado<b id="offlineAdvance">0</b></div>
+    <div class="stat">Eficiencia motora<b id="motorEfficiency">0</b></div>
+    <div class="stat">Saltos acumulados<b id="jumpCount">0</b></div>
+    <div class="stat">Física<b id="physicsState">cargando…</b></div>
+    <div class="stat">Cuerpos rígidos<b id="rigidBodyCount">0</b></div>
+    <div class="stat">Apoyos físicos<b id="physicalContacts">0</b></div>
+    <div class="stat">Motor cargado<b id="engineVersion">esperando…</b></div>
+    <div class="stat">Render 3D<b id="renderStatus">esperando…</b></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <button id="pause" class="primary">Pausar</button>
+      <button id="sound">Activar sonido</button>
+      <button id="anatomy">Mostrar anatomía</button>
+      <button id="testSound">Probar sonido</button>
+      <button id="spawn">+ criatura</button>
+      <button id="foodBtn">+ alimento</button>
+      <button id="matBtn">+ materiales</button>
+      <button id="saveNow">Guardar ahora</button>
+      <button id="reset" class="danger">Reiniciar mundo</button>
+      <button id="newOrigin" class="primary" style="display:none">Crear nuevo origen de vida</button>
+    </div>
+
+    <div class="range">
+      <label for="speed">Velocidad</label>
+      <input id="speed" type="range" min="0.25" max="100" value="1" step="0.25">
+      <output id="speedOut">1×</output>
+    </div>
+
+    <div class="range">
+      <label for="mutation">Mutación</label>
+      <input id="mutation" type="range" min="0.01" max="0.35" value="0.10" step="0.01">
+      <output id="mutationOut">10%</output>
+    </div>
+
+    <div class="range">
+      <label for="sun">Luz solar</label>
+      <input id="sun" type="range" min="0.2" max="1.8" value="1.0" step="0.05">
+      <output id="sunOut">1.00</output>
+    </div>
+
+    <div class="range">
+      <label for="volume">Volumen</label>
+      <input id="volume" type="range" min="0" max="0.5" value="0.18" step="0.01">
+      <output id="volumeOut">18%</output>
+    </div>
+  </div>
+
+  <div class="legend">
+    <b>Navegación:</b> escritorio: clic izquierdo rota, derecho desplaza, rueda zoom. Móvil: 1 dedo rota, 2 dedos desplazan y pellizcan para zoom; joystick mueve el mapa.
+    <br><br>
+    <b>Lectura rápida:</b> si población, fertilidad, energía y salud están estables, mira después cultura y sociedad.
+    Abre <b>Diagnóstico avanzado</b> solo cuando necesitemos investigar un sistema específico.
+  </div>
+</div>
+
+<div id="selected">
+  <div class="selectedHeader">
+    <div class="name" id="selName"></div>
+    <button id="selectedClose" title="Cerrar">×</button>
+  </div>
+  <div class="mini" id="selInfo"></div>
+</div>
+
+<div id="notice">
+  v17.3.6 no programa tribus ni familias. La familiaridad, confianza, parentesco, ayuda repetida y lugares sociales modifican gradualmente las decisiones. La reproducción usa recursos y reservas reales en lugar de perseguir una población objetivo.
+</div>
+
+<div id="discoveries">
+  <div class="discHead"><b>📜 Historia del mundo</b><button id="discToggle" title="Minimizar">−</button></div>
+  <div id="discoveryList"><div class="discEvent"><span class="discTitle">Esperando descubrimientos…</span><div class="discDetail">Los eventos importantes aparecerán aquí automáticamente.</div></div></div>
+</div>
+
+<div id="extinction">
+  <div class="card">
+    <h2>☠ EXTINCIÓN</h2>
+    <p>El linaje activo terminó y no quedan embriones viables. La extinción sigue siendo real, pero el archivo evolutivo puede conservar genomas exitosos para el siguiente origen.</p>
+    <div id="extinctionStats"></div>
+    <button id="extinctionOrigin" class="primary">Crear nuevo origen de vida</button>
+  </div>
+</div>
+
+<script type="module">
+const engineEl=document.getElementById('engineVersion');
+const renderEl=document.getElementById('renderStatus');
+const advancedToggle=document.getElementById('advancedToggle');
+const advancedStats=document.getElementById('advancedStats');
+if(advancedToggle&&advancedStats){
+  advancedToggle.addEventListener('click',()=>{
+    const open=advancedStats.classList.toggle('open');
+    advancedToggle.classList.toggle('open',open);
+    advancedToggle.setAttribute('aria-expanded',String(open));
+    advancedToggle.querySelector('span:first-child').textContent=open?'Ocultar diagnóstico avanzado':'Diagnóstico avanzado';
+  });
+}
+if(engineEl) engineEl.textContent='cargando v17.3.4…';
+try{
+  await import('./simulation.js?v=17.3.4');
+}catch(err){
+  console.error('Life Sim no pudo iniciar:',err);
+  if(engineEl) engineEl.textContent='ERROR AL CARGAR';
+  if(renderEl) renderEl.textContent=(err?.message||String(err)).slice(0,80);
+}
+</script>
+</body>
+</html>
