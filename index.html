@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Sim v15.0 — Discoverable World</title>
+  <style>
+    :root{
+      --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
+      --accent:#7de38f; --danger:#ff7b7b; --line:#263444;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    #app{position:fixed;inset:0}
+    #hud{
+      position:fixed;left:14px;top:14px;width:min(430px,calc(100vw - 28px));
+      background:rgba(17,25,35,.91);backdrop-filter:blur(10px);
+      border:1px solid var(--line);border-radius:14px;padding:14px;z-index:10;
+      box-shadow:0 10px 30px rgba(0,0,0,.28);max-height:calc(100vh - 28px);overflow:auto
+    }
+    h1{font-size:16px;margin:0 0 7px;font-weight:760}
+    .sub{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-bottom:12px}
+    .stat{font-size:11px;color:var(--muted)}
+    .stat b{display:block;color:var(--text);font-size:14px;margin-top:2px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button,input[type="range"]{font:inherit}
+    button{
+      background:#172434;color:var(--text);border:1px solid #30465d;border-radius:10px;
+      padding:8px 10px;cursor:pointer;font-size:12px
+    }
+    button:hover{border-color:#4d6c89}
+    button.primary{background:#17351f;border-color:#2c6c3a;color:#dfffe6}
+    button.danger{background:#3a1f24;border-color:#78404c}
+    button.soundOn{background:#302a13;border-color:#7c6c27;color:#fff4b6}
+    .controls{display:grid;gap:9px}
+    .range{display:grid;grid-template-columns:102px 1fr 46px;align-items:center;gap:8px}
+    .range label{font-size:11px;color:var(--muted)}
+    .range output{text-align:right;font-size:11px;color:var(--text)}
+    input[type="range"]{width:100%}
+    .legend{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:10px;color:var(--muted);line-height:1.5}
+    .hudHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+    .hudHeader h1{margin:0}
+    #hudToggle{padding:5px 9px;min-width:34px;font-size:16px;line-height:1}
+    #hud.collapsed{
+      width:50px;height:46px;padding:6px;overflow:hidden;border-radius:13px;
+      max-height:46px
+    }
+    #hud.collapsed .hudHeader{margin:0;height:34px;justify-content:center}
+    #hud.collapsed .hudHeader h1{display:none}
+    #hud.collapsed > :not(.hudHeader){display:none}
+    #hud.collapsed #hudToggle{width:38px;height:34px;padding:0}
+    #selected{
+      position:fixed;right:14px;top:14px;width:365px;max-width:calc(100vw - 28px);
+      background:rgba(17,25,35,.93);border:1px solid var(--line);border-radius:14px;
+      padding:12px;z-index:10;display:none;max-height:calc(100vh - 28px);overflow:auto
+    }
+    .selectedHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    #selected .name{font-weight:760;font-size:13px}
+    #selectedClose{padding:4px 8px;font-size:15px;line-height:1}
+    #selected .mini{font-size:11px;color:var(--muted);line-height:1.5;white-space:pre-line}
+    #notice{
+      position:fixed;right:14px;bottom:14px;max-width:520px;
+      background:rgba(17,25,35,.91);border:1px solid var(--line);border-radius:12px;
+      padding:10px 12px;font-size:11px;color:var(--muted);z-index:10;line-height:1.45
+    }
+    #extinction{
+      position:fixed;inset:0;display:none;place-items:center;z-index:40;
+      background:rgba(4,8,12,.72);backdrop-filter:blur(5px)
+    }
+    #extinction .card{
+      width:min(520px,calc(100vw - 32px));background:#111923;border:1px solid #5b2f38;
+      border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center
+    }
+    #extinction h2{margin:0 0 8px;font-size:24px}
+    #extinction p{color:var(--muted);font-size:13px;line-height:1.5}
+    #extinctionStats{font-size:12px;color:#dce7ef;line-height:1.7;margin:12px 0}
+    canvas{display:block}
+    @media(max-width:850px){
+      #hud{left:8px;top:8px;width:min(365px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
+      #hud.collapsed{width:50px;height:46px}
+      #selected{
+        top:auto;bottom:8px;left:8px;right:8px;
+        width:auto;max-width:none;max-height:48vh
+      }
+      #notice{display:none}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud">
+  <div class="hudHeader">
+    <h1>Life Sim v15.0 — Discoverable World</h1>
+    <button id="hudToggle" title="Minimizar panel">−</button>
+  </div>
+  <div class="sub">
+    Mundo descubrible: calor, combustión, transformación material, marcas persistentes y aprendizaje motor por demostración.
+  </div>
+
+  <div class="grid">
+    <div class="stat">Población<b id="pop">0</b></div>
+    <div class="stat">Generación máx.<b id="gen">0</b></div>
+    <div class="stat">Nacimientos<b id="births">0</b></div>
+    <div class="stat">Muertes<b id="deaths">0</b></div>
+    <div class="stat">Edad del mundo<b id="age">0.0</b></div>
+    <div class="stat">Alimento<b id="food">0</b></div>
+    <div class="stat">Materiales<b id="materials">0</b></div>
+    <div class="stat">Estructuras<b id="structures">0</b></div>
+    <div class="stat">Artefactos compuestos<b id="artifacts">0</b></div>
+    <div class="stat">Mayor asentamiento<b id="settlementSize">0</b></div>
+    <div class="stat">Complejidad material<b id="technologyIndex">0</b></div>
+    <div class="stat">Combustiones activas<b id="activeCombustions">0</b></div>
+    <div class="stat">Transformaciones térmicas<b id="thermalTransforms">0</b></div>
+    <div class="stat">Marcas persistentes<b id="worldMarks">0</b></div>
+    <div class="stat">Símbolos externos compartidos<b id="sharedMarks">0</b></div>
+    <div class="stat">Técnicas motoras culturales<b id="motorTechniques">0</b></div>
+    <div class="stat">Imitación motora<b id="motorImitations">0</b></div>
+    <div class="stat">Símbolos compartidos<b id="sharedTokens">0</b></div>
+    <div class="stat">Dialectos detectados<b id="dialects">0</b></div>
+    <div class="stat">Comprensión comunicativa<b id="languageScore">0</b></div>
+    <div class="stat">Memorias espaciales<b id="memories">0</b></div>
+    <div class="stat">Celdas exploradas<b id="cells">0</b></div>
+    <div class="stat">Vínculos positivos<b id="positiveBonds">0</b></div>
+    <div class="stat">Rivalidades<b id="rivalries">0</b></div>
+    <div class="stat">Futuros simulados<b id="mentalSims">0</b></div>
+    <div class="stat">Secuencias aprendidas<b id="sequences">0</b></div>
+    <div class="stat">Imitaciones<b id="imitations">0</b></div>
+    <div class="stat">Neuronas promedio<b id="avgNeurons">0</b></div>
+    <div class="stat">Conexiones activas prom.<b id="avgConnections">0</b></div>
+    <div class="stat">Topologías distintas<b id="topologyDiversity">0</b></div>
+    <div class="stat">Error predictivo prom.<b id="predictionError">0</b></div>
+    <div class="stat">Desarrollo promedio<b id="avgDevelopment">0</b></div>
+    <div class="stat">Origen actual<b id="originCount">1</b></div>
+    <div class="stat">Estado del linaje<b id="lineageState">vivo</b></div>
+    <div class="stat">Músculo promedio<b id="avgMuscle">0</b></div>
+    <div class="stat">Grasa promedio<b id="avgFat">0</b></div>
+    <div class="stat">Tamaño corporal prom.<b id="avgBody">0</b></div>
+    <div class="stat">Patrones de piel<b id="skinPatterns">0</b></div>
+    <div class="stat">Curvatura prom.<b id="avgCurve">0</b></div>
+    <div class="stat">Señales táctiles<b id="touchCount">0</b></div>
+    <div class="stat">Dolor promedio<b id="avgPain">0</b></div>
+    <div class="stat">Reflejos<b id="reflexCount">0</b></div>
+    <div class="stat">Nac. últimos 100<b id="recentBirths">0</b></div>
+    <div class="stat">Muertes últimos 100<b id="recentDeaths">0</b></div>
+    <div class="stat">Balance poblacional<b id="popBalance">0</b></div>
+    <div class="stat">Edad promedio<b id="avgAge">0</b></div>
+    <div class="stat">Individuos fértiles<b id="fertileCount">0</b></div>
+    <div class="stat">Embriones dormantes<b id="embryoCount">0</b></div>
+    <div class="stat">Archivo evolutivo<b id="archiveCount">0</b></div>
+    <div class="stat">Recolonizaciones<b id="recolonizations">0</b></div>
+    <div class="stat">Riesgo demográfico<b id="demographicRisk">estable</b></div>
+    <div class="stat">Persistencia<b id="persistState">iniciando…</b></div>
+    <div class="stat">Último guardado<b id="lastSave">—</b></div>
+    <div class="stat">Tiempo recuperado<b id="offlineAdvance">0</b></div>
+    <div class="stat">Eficiencia motora<b id="motorEfficiency">0</b></div>
+    <div class="stat">Saltos acumulados<b id="jumpCount">0</b></div>
+    <div class="stat">Física<b id="physicsState">cargando…</b></div>
+    <div class="stat">Cuerpos rígidos<b id="rigidBodyCount">0</b></div>
+    <div class="stat">Apoyos físicos<b id="physicalContacts">0</b></div>
+    <div class="stat">Motor cargado<b id="engineVersion">esperando…</b></div>
+    <div class="stat">Render 3D<b id="renderStatus">esperando…</b></div>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <button id="pause" class="primary">Pausar</button>
+      <button id="sound">Activar sonido</button>
+      <button id="anatomy">Mostrar anatomía</button>
+      <button id="testSound">Probar sonido</button>
+      <button id="spawn">+ criatura</button>
+      <button id="foodBtn">+ alimento</button>
+      <button id="matBtn">+ materiales</button>
+      <button id="saveNow">Guardar ahora</button>
+      <button id="reset" class="danger">Reiniciar mundo</button>
+      <button id="newOrigin" class="primary" style="display:none">Crear nuevo origen de vida</button>
+    </div>
+
+    <div class="range">
+      <label for="speed">Velocidad</label>
+      <input id="speed" type="range" min="0.25" max="100" value="1" step="0.25">
+      <output id="speedOut">1×</output>
+    </div>
+
+    <div class="range">
+      <label for="mutation">Mutación</label>
+      <input id="mutation" type="range" min="0.01" max="0.35" value="0.10" step="0.01">
+      <output id="mutationOut">10%</output>
+    </div>
+
+    <div class="range">
+      <label for="sun">Luz solar</label>
+      <input id="sun" type="range" min="0.2" max="1.8" value="1.0" step="0.05">
+      <output id="sunOut">1.00</output>
+    </div>
+
+    <div class="range">
+      <label for="volume">Volumen</label>
+      <input id="volume" type="range" min="0" max="0.5" value="0.18" step="0.01">
+      <output id="volumeOut">18%</output>
+    </div>
+  </div>
+
+  <div class="legend">
+    <b>Navegación:</b> clic izquierdo rota · clic derecho/central desplaza · rueda hace zoom · W/A/S/D o flechas recorren el mundo ·
+    Shift acelera · doble clic centra la cámara.
+    <br><br>
+    <b>v15:</b> el mundo contiene fenómenos que los organismos no reciben como “recetas”: temperatura, transferencia de calor,
+    combustión, enfriamiento, desgaste y transformación de materiales. Las marcas hechas sobre el suelo pueden permanecer tras la muerte
+    de su creador, y las secuencias motoras exitosas pueden ser observadas, imitadas y transmitidas culturalmente.
+  </div>
+</div>
+
+<div id="selected">
+  <div class="selectedHeader">
+    <div class="name" id="selName"></div>
+    <button id="selectedClose" title="Cerrar">×</button>
+  </div>
+  <div class="mini" id="selInfo"></div>
+</div>
+
+<div id="notice">
+  Las criaturas no conocen conceptos como fuego, escritura, herramienta o técnica. Perciben calor, dolor, objetos, patrones visuales y consecuencias.
+  Si aprenden a explotar esos fenómenos o a dejar señales persistentes, la asociación emerge de experiencia e imitación.
+</div>
+
+<div id="extinction">
+  <div class="card">
+    <h2>☠ EXTINCIÓN</h2>
+    <p>El linaje activo terminó y no quedan embriones viables. La extinción sigue siendo real, pero el archivo evolutivo puede conservar genomas exitosos para el siguiente origen.</p>
+    <div id="extinctionStats"></div>
+    <button id="extinctionOrigin" class="primary">Crear nuevo origen de vida</button>
+  </div>
+</div>
+
+<script type="module">
+const engineEl=document.getElementById('engineVersion');
+const renderEl=document.getElementById('renderStatus');
+if(engineEl) engineEl.textContent='cargando v15.0…';
+try{
+  await import('./simulation.js?v=15.0.4');
+}catch(err){
+  console.error('Life Sim no pudo iniciar:',err);
+  if(engineEl) engineEl.textContent='ERROR AL CARGAR';
+  if(renderEl) renderEl.textContent=(err?.message||String(err)).slice(0,80);
+}
+</script>
+</body>
+</html>
