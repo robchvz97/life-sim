@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.17';
+const ENGINE_VERSION='v17.7.18';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -2819,16 +2819,16 @@ function recoverRigidTerrainPenetration(a,dt){
   }
 
   // Small contacts are normal on sloped triangles. Only sustained, deep penetration is corrected.
-  if(maxPen>.16){
+  if(maxPen>.09){
     rig.terrainPenetrationTime=(rig.terrainPenetrationTime||0)+dt;
   }else{
     rig.terrainPenetrationTime=Math.max(0,(rig.terrainPenetrationTime||0)-dt*2.2);
     return false;
   }
 
-  if(rig.terrainPenetrationTime<.20 || worldAge-(rig.lastTerrainRecovery||-999)<.55)return false;
+  if(rig.terrainPenetrationTime<.10 || worldAge-(rig.lastTerrainRecovery||-999)<.32)return false;
 
-  const lift=clamp(maxPen+.16,.18,1.65);
+  const lift=clamp(maxPen+.12,.14,1.35);
   const liftBody=(body)=>{
     const p=body.translation();
     body.setTranslation({x:p.x,y:p.y+lift,z:p.z},true);
@@ -4589,12 +4589,22 @@ function recordNavigationPath(a,dt){
   const looping=repeats>=2&&targetProgress<.45;
 
   if(looping){
-    a.nav.loopScore=clamp((a.nav.loopScore||0)+.34,0,1.4);
+    a.nav.loopScore=clamp((a.nav.loopScore||0)+.42,0,1.4);
     a.nav.escapeSign=((a.id+(a.nav.replans||0))%2)?1:-1;
     a.rewardBuffer-=.035;
-    a.decision.timer=0;
-    a.nav.noProgress=Math.max(a.nav.noProgress||0,CONFIG.NAV_REPLAN_TIME);
+    const goal=a.decision?.target;
+    if(goal){
+      const dx=goal.x-a.mesh.position.x,dz=goal.z-a.mesh.position.z;
+      const base=Math.atan2(dx,dz);
+      const escapeAng=base+a.nav.escapeSign*(.95+.18*Math.min(1,a.nav.loopScore));
+      const dist=1.45+.45*Math.min(1,a.nav.loopScore);
+      a.nav.lastWaypoint={x:a.mesh.position.x+Math.sin(escapeAng)*dist,z:a.mesh.position.z+Math.cos(escapeAng)*dist};
+      a.nav.waypointTimer=.95;
+    }
+    a.decision.timer=Math.max(a.decision.timer,.55);
+    a.nav.noProgress=0;
     a.nav.replans=(a.nav.replans||0)+1;
+    a.nav.path.length=0;
   }else{
     a.nav.loopScore=Math.max(0,(a.nav.loopScore||0)-.06);
   }
@@ -5614,7 +5624,7 @@ function updateAgent(a,dt){
   if(a.decision.target){
     a.nav.waypointTimer=(a.nav.waypointTimer||0)-dt;
     const oldWp=a.nav.lastWaypoint;
-    if(!oldWp||a.nav.waypointTimer<=0||a.nav.loopScore>.55){
+    if(!oldWp||a.nav.waypointTimer<=0){
       const wp=chooseLocalWaypoint(a,a.decision.target);
       a.nav.lastWaypoint=wp?{x:wp.x,z:wp.z}:null;
       a.nav.waypointTimer=.18;
