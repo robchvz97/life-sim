@@ -1,8 +1,8 @@
-// Life Sim v17.7.11 bootstrap.
+// Life Sim v17.7.12 bootstrap.
 const engineEl=document.getElementById('engineVersion');
-if(engineEl)engineEl.textContent='cargando v17.7.11…';
-document.title='Life Sim v17.7.11 — World Audit';
-const titleEl=document.querySelector('#hud h1');if(titleEl)titleEl.textContent='Life Sim v17.7.11 — World Audit';
+if(engineEl)engineEl.textContent='cargando v17.7.12…';
+document.title='Life Sim v17.7.12 — World Audit';
+const titleEl=document.querySelector('#hud h1');if(titleEl)titleEl.textContent='Life Sim v17.7.12 — World Audit';
 const subEl=document.querySelector('#hud .sub');if(subEl)subEl.textContent='Auditoría del mundo: historial de métricas, respaldo descargable y pruebas sobre copias sin gráficos.';
 const noticeEl=document.getElementById('notice');if(noticeEl)noticeEl.textContent='Exporta la auditoría para revisar problemas de tu mundo. El modo copia no guarda cambios en tu partida principal.';
 
@@ -40,7 +40,14 @@ function addDemographicDiagnostics(){
     ['deathHealthTotal','Muertes daño/salud registradas','0'],
     ['deathAgeTotal','Muertes vejez registradas','0'],
     ['deathOfflineTotal','Muertes riesgo offline registradas','0'],
-    ['deathUnknownTotal','Muertes causa desconocida registradas','0']
+    ['deathUnknownTotal','Muertes causa desconocida registradas','0'],
+    ['ageBand0','Edad 0–17','0'],
+    ['ageBand1','Edad 18–40','0'],
+    ['ageBand2','Edad 41–80','0'],
+    ['ageBand3','Edad 81–160','0'],
+    ['ageBand4','Edad 161+','0'],
+    ['parentAgeRecent','Edad media progenitor nacimientos últimos 100','—'],
+    ['deathAgeAverageRecent','Edad media de muerte últimos 100','—']
   ];
   const label=document.getElementById('recentRescues')?.parentElement;
   if(label)label.firstChild.textContent='Episodios rescate últimos 100';
@@ -54,15 +61,15 @@ function addDemographicDiagnostics(){
 addDemographicDiagnostics();
 
 try{
-  await import('./engine-v17.7.4.js?v=9');
+  await import('./engine-v17.7.4.js?v=10');
 }catch(err){
-  console.error('[Life Sim v17.7.11] error de arranque',err);
-  if(engineEl)engineEl.textContent='v17.7.11 · ERROR';
+  console.error('[Life Sim v17.7.12] error de arranque',err);
+  if(engineEl)engineEl.textContent='v17.7.12 · ERROR';
   if(noticeEl){
     noticeEl.style.color='#ffb3b3';
-    noticeEl.textContent='Error al cargar v17.7.11: '+(err?.message||String(err))+'. Recarga con Ctrl+F5. Si persiste, comparte esta pantalla.';
+    noticeEl.textContent='Error al cargar v17.7.12: '+(err?.message||String(err))+'. Recarga con Ctrl+F5. Si persiste, comparte esta pantalla.';
   }
   const history=document.getElementById('discoveryList');
-  if(history)history.innerHTML='<div class="discEvent"><div class="discTitle">⚠️ Error de arranque v17.7.11</div><div class="discDetail">'+String(err?.message||err)+'</div></div>';
+  if(history)history.innerHTML='<div class="discEvent"><div class="discTitle">⚠️ Error de arranque v17.7.12</div><div class="discDetail">'+String(err?.message||err)+'</div></div>';
 }
 
