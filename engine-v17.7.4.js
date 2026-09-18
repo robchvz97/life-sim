@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.16';
+const ENGINE_VERSION='v17.7.17';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4865,6 +4865,16 @@ function createStructureFromMaterials(chosen,center){
     new THREE.MeshStandardMaterial({color:0x6b5940,roughness:.92,metalness:0})
   );
   footprint.position.y=.05;footprint.userData.structureFootprint=true;group.add(footprint);
+  // Lift and arrange the actual emergent parts into a readable pile/frame. This
+  // is visualization of the materials the organisms assembled, not a blueprint.
+  const structuralParts=group.children.filter(o=>o!==footprint);
+  structuralParts.forEach((o,i)=>{
+    const ring=.24+.055*(i%4),ang=i*2.399;
+    o.position.x=Math.cos(ang)*ring;o.position.z=Math.sin(ang)*ring;
+    o.position.y=.16+(i%3)*.16;
+    o.rotation.y=ang;o.rotation.z=(i%2?1:-1)*.28;
+    o.scale.multiplyScalar(1.18);
+  });
   const mast=new THREE.Mesh(
     new THREE.CylinderGeometry(.025,.035,clamp(.45+chosen.length*.045,.55,.95),6),
     new THREE.MeshStandardMaterial({color:0x8a704c,roughness:.9})
@@ -6964,8 +6974,15 @@ function maintainBiosphereContinuity(dt){
   const fertile=fertilePopulation();
   const birthGap=timeSinceNaturalBirth();
 
-  const absoluteEmergency=agents.length<=4&&embryos.length===0;
-  const reproductiveEmergency=agents.length<CONFIG.BIOSPHERE_LOW_POP&&fertile===0&&birthGap>CONFIG.RESCUE_BIRTH_GAP;
+  const absoluteEmergency=agents.length<=3&&embryos.length===0;
+  const reproductiveAdults=agents.filter(reproductiveAge).length;
+  const juveniles=agents.filter(a=>a.age<CONFIG.MIN_REPRO_AGE).length;
+  // Do not call a rescue merely because today's fertile count is zero. A living
+  // cohort of juveniles/reproductive-age adults is a natural recovery path.
+  // Rescue only after that path is absent for a prolonged interval.
+  const naturalRecoveryPool=reproductiveAdults+juveniles+embryos.length;
+  const reproductiveEmergency=agents.length<CONFIG.BIOSPHERE_LOW_POP&&fertile===0&&
+    naturalRecoveryPool<2&&birthGap>CONFIG.RESCUE_BIRTH_GAP*2.2;
 
   if(absoluteEmergency||reproductiveEmergency){
     const rate=absoluteEmergency?.22:.055;
