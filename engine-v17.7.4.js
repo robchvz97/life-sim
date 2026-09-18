@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.14';
+const ENGINE_VERSION='v17.7.15';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -2317,10 +2317,19 @@ function reproductiveMaxAge(a){
   const minSpan=clamp(dev*2.15,40,72);
   return Math.min(maxAge*.90,Math.max(CONFIG.MIN_REPRO_AGE+minSpan,maxAge*.86));
 }
+function effectiveReproMinEnergy(){
+  // v17.7.14 fresh-world audit: population 11, energy avg 43.3, health 98.5,
+  // food 655, yet only 4 fertile and repeated near-extinction rescues. At low
+  // density the fixed energy threshold created an Allee-effect cliff. Lower the
+  // eligibility floor only as population becomes critically sparse; energy still
+  // continuously controls conception probability below.
+  const scarcity=clamp((24-agents.length)/16,0,1);
+  return CONFIG.REPRO_MIN_ENERGY-8*scarcity;
+}
 function isFertile(a){
   return a.age>=CONFIG.MIN_REPRO_AGE &&
     a.age<reproductiveMaxAge(a) &&
-    a.energy>=CONFIG.REPRO_MIN_ENERGY &&
+    a.energy>=effectiveReproMinEnergy() &&
     a.health>56 &&
     a.reproCooldown<=0;
 }
@@ -2353,7 +2362,7 @@ function currentFertilePairMetrics(maxDist=2.4){
 }
 function energyBlockedAdults(){
   let n=0;
-  for(const a of agents)if(reproductiveAge(a)&&a.energy<CONFIG.REPRO_MIN_ENERGY)n++;
+  for(const a of agents)if(reproductiveAge(a)&&a.energy<effectiveReproMinEnergy())n++;
   return n;
 }
 function reproductiveTelemetry(){
@@ -2390,7 +2399,7 @@ function reproductiveTelemetry(){
 }
 function cooldownBlockedAdults(){
   let n=0;
-  for(const a of agents)if(reproductiveAge(a)&&a.energy>=CONFIG.REPRO_MIN_ENERGY&&a.reproCooldown>0)n++;
+  for(const a of agents)if(reproductiveAge(a)&&a.energy>=effectiveReproMinEnergy()&&a.reproCooldown>0)n++;
   return n;
 }
 function noteFertileEncounter(a,b){
@@ -5728,7 +5737,7 @@ function updateAgent(a,dt){
   // adults were energy-blocked. Preserve evolved food choice, but strengthen
   // only the low-level homeostatic reflex when an organism is in a severe
   // energy deficit and food is already physically visible/reachable.
-  const severeEnergyDeficit=a.energy<CONFIG.REPRO_MIN_ENERGY*.72;
+  const severeEnergyDeficit=a.energy<effectiveReproMinEnergy()*.72;
   const contactFeedingReflex=a.energy<67&&hungerDrive>.32;
   const emergencyForageReflex=severeEnergyDeficit&&p.fVisible;
   if(emergencyForageReflex&&a.decision.mode!==1){
@@ -5816,8 +5825,9 @@ function updateAgent(a,dt){
   if(isFertile(a) && agents.length+embryos.length<CONFIG.MAX_AGENTS+CONFIG.EMBRYO_MAX){
     const mate=chooseMate(a,2.4);
     if(mate){
-      const ea=clamp((a.energy-CONFIG.REPRO_MIN_ENERGY)/(CONFIG.MAX_ENERGY-CONFIG.REPRO_MIN_ENERGY),0,1);
-      const eb=clamp((mate.energy-CONFIG.REPRO_MIN_ENERGY)/(CONFIG.MAX_ENERGY-CONFIG.REPRO_MIN_ENERGY),0,1);
+      const reproFloor=effectiveReproMinEnergy();
+      const ea=clamp((a.energy-reproFloor)/(CONFIG.MAX_ENERGY-reproFloor),0,1);
+      const eb=clamp((mate.energy-reproFloor)/(CONFIG.MAX_ENERGY-reproFloor),0,1);
       const density=agents.length/CONFIG.MAX_AGENTS;
       const demo=recentDemography();
       const resourcePerCapita=food.length/Math.max(1,agents.length);
@@ -5849,11 +5859,11 @@ function updateAgent(a,dt){
         // scaling the one-time parental investment to the energy actually available.
         // This does not alter fertility, compatibility, mate choice or birth chance.
         const nominalCost=CONFIG.REPRO_COST*clamp(.54+.10/resourceSupport,.54,.72);
-        const sharedReserve=Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY;
+        const sharedReserve=Math.min(a.energy,mate.energy)-reproFloor;
         const reserveScale=clamp(.72+Math.max(0,sharedReserve)/42,.72,1);
         const cost=nominalCost*reserveScale;
-        a.energy=Math.max(CONFIG.REPRO_MIN_ENERGY*.78,a.energy-cost);
-        mate.energy=Math.max(CONFIG.REPRO_MIN_ENERGY*.78,mate.energy-cost*.82);
+        a.energy=Math.max(reproFloor*.78,a.energy-cost);
+        mate.energy=Math.max(reproFloor*.78,mate.energy-cost*.82);
         a.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);mate.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);
 
         const childGenome=recombineGenome(a.genome,mate.genome);
