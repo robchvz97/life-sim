@@ -1,8 +1,8 @@
-// Life Sim v17.7.10 bootstrap.
+// Life Sim v17.7.11 bootstrap.
 const engineEl=document.getElementById('engineVersion');
-if(engineEl)engineEl.textContent='cargando v17.7.10…';
-document.title='Life Sim v17.7.10 — World Audit';
-const titleEl=document.querySelector('#hud h1');if(titleEl)titleEl.textContent='Life Sim v17.7.10 — World Audit';
+if(engineEl)engineEl.textContent='cargando v17.7.11…';
+document.title='Life Sim v17.7.11 — World Audit';
+const titleEl=document.querySelector('#hud h1');if(titleEl)titleEl.textContent='Life Sim v17.7.11 — World Audit';
 const subEl=document.querySelector('#hud .sub');if(subEl)subEl.textContent='Auditoría del mundo: historial de métricas, respaldo descargable y pruebas sobre copias sin gráficos.';
 const noticeEl=document.getElementById('notice');if(noticeEl)noticeEl.textContent='Exporta la auditoría para revisar problemas de tu mundo. El modo copia no guarda cambios en tu partida principal.';
 
@@ -54,15 +54,15 @@ function addDemographicDiagnostics(){
 addDemographicDiagnostics();
 
 try{
-  await import('./engine-v17.7.4.js?v=8');
+  await import('./engine-v17.7.4.js?v=9');
 }catch(err){
-  console.error('[Life Sim v17.7.10] error de arranque',err);
-  if(engineEl)engineEl.textContent='v17.7.10 · ERROR';
+  console.error('[Life Sim v17.7.11] error de arranque',err);
+  if(engineEl)engineEl.textContent='v17.7.11 · ERROR';
   if(noticeEl){
     noticeEl.style.color='#ffb3b3';
-    noticeEl.textContent='Error al cargar v17.7.10: '+(err?.message||String(err))+'. Recarga con Ctrl+F5. Si persiste, comparte esta pantalla.';
+    noticeEl.textContent='Error al cargar v17.7.11: '+(err?.message||String(err))+'. Recarga con Ctrl+F5. Si persiste, comparte esta pantalla.';
   }
   const history=document.getElementById('discoveryList');
-  if(history)history.innerHTML='<div class="discEvent"><div class="discTitle">⚠️ Error de arranque v17.7.10</div><div class="discDetail">'+String(err?.message||err)+'</div></div>';
+  if(history)history.innerHTML='<div class="discEvent"><div class="discTitle">⚠️ Error de arranque v17.7.11</div><div class="discDetail">'+String(err?.message||err)+'</div></div>';
 }
 
