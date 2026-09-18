@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.13';
+const ENGINE_VERSION='v17.7.14';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -37,7 +37,7 @@ const CONFIG={
   FOOD_RESPAWN:1.90, MATERIAL_RESPAWN:.08,
   BASE_METABOLISM:.160, MOVE_COST:.088, WATER_DRAIN:.12,
   START_ENERGY:58, MAX_ENERGY:100, MAX_HEALTH:100, MAX_AGE:310,
-  REPRO_MIN_ENERGY:54, REPRO_COST:20, REPRO_COOLDOWN:8.5,
+  REPRO_MIN_ENERGY:48, REPRO_COST:18, REPRO_COOLDOWN:8.5,
   MIN_REPRO_AGE:18, JUVENILE_END:28, EMBRYO_MAX_AGE:180,
   EMBRYO_MAX:150, ARCHIVE_MAX:16, DEMO_WINDOW:100,
   BIOSPHERE_LOW_POP:8, BIOSPHERE_SEED_TARGET:12,
@@ -4846,7 +4846,22 @@ function createStructureFromMaterials(chosen,center){
   const s={id:nextStructureId++,group,parts,partProps,builders,modifications:0,useTime:0,maxOccupancy:0,lastUsed:worldAge,age:0,
     techArchive:traces,minGeneration:gens.length?Math.min(...gens):null,maxGeneration:gens.length?Math.max(...gens):null,
     worksiteStrength:.12,worksiteWork:0,worksiteWorkers:[...builders],lastWorkAt:worldAge};
-  recalcStructure(s);structures.push(s);return s;
+  recalcStructure(s);
+  // Structures were already being built (v17.7.13 audit: 81 structures and
+  // thousands of shaping events) but were visually indistinguishable from loose
+  // ground material. Add a neutral footprint/marker only after an emergent
+  // structure exists; this does not cause construction or encode a blueprint.
+  const footprint=new THREE.Mesh(
+    new THREE.CylinderGeometry(clamp(.34+chosen.length*.055,.42,.82),clamp(.38+chosen.length*.06,.46,.90),.10,10),
+    new THREE.MeshStandardMaterial({color:0x6b5940,roughness:.92,metalness:0})
+  );
+  footprint.position.y=.05;footprint.userData.structureFootprint=true;group.add(footprint);
+  const mast=new THREE.Mesh(
+    new THREE.CylinderGeometry(.025,.035,clamp(.45+chosen.length*.045,.55,.95),6),
+    new THREE.MeshStandardMaterial({color:0x8a704c,roughness:.9})
+  );
+  mast.position.set(0,clamp(.45+chosen.length*.045,.55,.95)/2,0);mast.userData.structureMarker=true;group.add(mast);
+  structures.push(s);return s;
 }
 function tryAttachMaterialToStructure(a,m){
   if(!m||m.carriedBy||!structures.length)return false;
