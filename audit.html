@@ -384,7 +384,7 @@ if(advancedToggle&&advancedStats){
 }
 if(engineEl) engineEl.textContent='cargando v17.7.2…';
 try{
-  if(!new URLSearchParams(location.search).has('audit')){const u=new URL(location.href);u.searchParams.set('audit','1');location.replace(u.href);}else await import('./bootstrap-v17.7.4.js');
+  if(!new URLSearchParams(location.search).has('audit')){const u=new URL(location.href);u.searchParams.set('audit','1');location.replace(u.href);}else await import('./bootstrap-v17.7.4.js?v=2');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
