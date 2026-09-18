@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.5';
+const ENGINE_VERSION='v17.7.6';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -6656,11 +6656,35 @@ function pruneMealEvents(){
 }
 function averageEnergy(){return agents.length?agents.reduce((s,a)=>s+a.energy,0)/agents.length:0;}
 function averageHealth(){return agents.length?agents.reduce((s,a)=>s+a.health,0)/agents.length:0;}
-function seedActiveFromBank(){
+function seedActiveFromBank(refugeCenter=null,adultCandidate=false){
   if(agents.length>=CONFIG.MAX_AGENTS)return null;
-  const source=seedBankGenome(),a=makeAgent(source.genome,randomGroundPos(CONFIG.WORLD*.68),source.generation,source.lineage,{originSeed:true});
+  const source=seedBankGenome();
+  let spawn=randomGroundPos(CONFIG.WORLD*.68);
+  if(refugeCenter){
+    spawn=refugeCenter.clone();
+    const ang=rand(0,Math.PI*2),radius=rand(1.4,5.8);
+    spawn.x+=Math.sin(ang)*radius;spawn.z+=Math.cos(ang)*radius;
+    const rr=Math.hypot(spawn.x,spawn.z);
+    if(rr>CONFIG.WORLD-1.5)spawn.multiplyScalar((CONFIG.WORLD-1.5)/rr);
+    spawn.y=terrainHeightAt(spawn);
+  }
+  const a=makeAgent(source.genome,spawn,source.generation,source.lineage,{originSeed:true});
   if(!a)return null;
-  a.age=rand(4,38);a.energy=rand(74,94);a.health=rand(90,100);a.reproCooldown=rand(0,3.5);
+
+  // Emergency cohorts should contain overlapping life stages. Previously every
+  // rescue sampled age independently from 4..38 and scattered across most of
+  // the world, so a nominal rescue could immediately contain zero simultaneous
+  // reproductive adults. This changes rescue placement/state only; it does not
+  // alter inherited fertility, mating probability or ordinary births.
+  if(adultCandidate){
+    const adultMax=Math.max(CONFIG.MIN_REPRO_AGE+6,Math.min(CONFIG.JUVENILE_END+12,reproductiveMaxAge(a)-4));
+    a.age=rand(CONFIG.MIN_REPRO_AGE+1,adultMax);
+    a.reproCooldown=rand(0,.9);
+  }else{
+    a.age=rand(4,38);
+    a.reproCooldown=rand(0,3.5);
+  }
+  a.energy=rand(74,94);a.health=rand(90,100);
   a.phenotype.growth=clamp(a.age/Math.max(24,a.genome.body.developmentDuration),.18,1);
   applyMorphologyVisual(a);if(a.physics)rebuildPhysicsRig(a);
   biosphereRescues++;rescueInsertions++;rescueInsertionEvents.push(worldAge);return a;
@@ -6668,7 +6692,16 @@ function seedActiveFromBank(){
 function emergencyDemographicRecovery(reason='emergencia biológica',reasonCode='other'){
   if(worldAge-lastRescueAt<CONFIG.RESCUE_COOLDOWN)return 0;
   const before=agents.length,target=CONFIG.EMERGENCY_RESCUE_TARGET;
-  while(agents.length<target)if(!seedActiveFromBank())break;
+  const refugeCenter=agents.length
+    ? agents.reduce((p,a)=>p.add(a.mesh.position),new THREE.Vector3()).multiplyScalar(1/agents.length)
+    : randomGroundPos(CONFIG.WORLD*.42);
+  let adultSeeds=agents.filter(reproductiveAge).length;
+  while(agents.length<target){
+    const needAdult=adultSeeds<3;
+    const added=seedActiveFromBank(refugeCenter,needAdult);
+    if(!added)break;
+    if(reproductiveAge(added))adultSeeds++;
+  }
   if(embryos.length<2)addDormantSeedFromBank();
   lastRescueAt=worldAge;demographicRescueActive=true;
   const added=agents.length-before;
