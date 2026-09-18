@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.9';
+const ENGINE_VERSION='v17.7.10';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -66,6 +66,8 @@ const embryos=[];
 const genomeArchive=[];
 const birthEvents=[];
 const deathEvents=[];
+const deathCauseEvents=[];
+const deathCauseTotals={starvation:0,health:0,age:0,offlineHazard:0,unknown:0};
 const mealEvents=[];
 const rescueInsertionEvents=[];
 const rescueEpisodeEvents=[];
@@ -3159,10 +3161,20 @@ function destroyAgentMesh(a){
   mats.forEach(m=>m.dispose());
 }
 
-function removeAgent(a){
+function inferDeathCause(a,explicit=null){
+  if(explicit)return explicit;
+  if(a.energy<=0)return 'starvation';
+  if(a.health<=0)return 'health';
+  if(a.age>individualMaxAge(a))return 'age';
+  return 'unknown';
+}
+function removeAgent(a,cause=null){
   const i=agents.indexOf(a);if(i<0)return;
+  const deathCause=inferDeathCause(a,cause);
   archiveAgent(a);
   deathEvents.push(worldAge);
+  deathCauseEvents.push({t:worldAge,cause:deathCause,age:a.age,energy:a.energy,health:a.health,generation:a.generation});
+  deathCauseTotals[deathCause]=(deathCauseTotals[deathCause]||0)+1;
   enrichSoilAt(a.mesh.position,.045);
   if(a.carrying)dropMaterial(a,true);
   const drops=Math.max(1,Math.min(6,Math.round(a.energy/11)+2));
@@ -5842,7 +5854,9 @@ function updateAgent(a,dt){
   a.rewardBuffer+=energyDelta*.012+healthDelta*.02+a.affect.valence*.0008;
   a.lastEnergy=a.energy;a.lastHealth=a.health;
 
-  if(a.energy<=0||a.health<=0||a.age>individualMaxAge(a))removeAgent(a);
+  if(a.energy<=0)removeAgent(a,'starvation');
+  else if(a.health<=0)removeAgent(a,'health');
+  else if(a.age>individualMaxAge(a))removeAgent(a,'age');
 }
 
 function updateFood(dt){
@@ -6115,6 +6129,19 @@ function updateHUD(){
   setRT('reproCompatiblePairs',rt.compatiblePairs);
   setRT('reproNearestAny',rt.nearest==null?'—':rt.nearest.toFixed(2));
   setRT('reproAvgCompatibility',rt.avgCompatibility==null?'—':rt.avgCompatibility.toFixed(2));
+  const recentDeathsByCause={starvation:0,health:0,age:0,offlineHazard:0,unknown:0};
+  const deathCutoff=worldAge-CONFIG.DEMO_WINDOW;
+  for(const ev of deathCauseEvents)if(ev.t>=deathCutoff)recentDeathsByCause[ev.cause]=(recentDeathsByCause[ev.cause]||0)+1;
+  setRT('deathStarvationRecent',recentDeathsByCause.starvation||0);
+  setRT('deathHealthRecent',recentDeathsByCause.health||0);
+  setRT('deathAgeRecent',recentDeathsByCause.age||0);
+  setRT('deathOfflineRecent',recentDeathsByCause.offlineHazard||0);
+  setRT('deathUnknownRecent',recentDeathsByCause.unknown||0);
+  setRT('deathStarvationTotal',deathCauseTotals.starvation||0);
+  setRT('deathHealthTotal',deathCauseTotals.health||0);
+  setRT('deathAgeTotal',deathCauseTotals.age||0);
+  setRT('deathOfflineTotal',deathCauseTotals.offlineHazard||0);
+  setRT('deathUnknownTotal',deathCauseTotals.unknown||0);
   const gap=timeSinceNaturalBirth();document.getElementById('birthGap').textContent=Number.isFinite(gap)?gap.toFixed(1):'sin nacimientos';
   document.getElementById('newWaterAcquired').textContent=totalEnvironmentalWaterAcquired.toFixed(3);
   document.getElementById('inheritedWater').textContent=inheritedWaterAtLoad.toFixed(3);
@@ -6671,7 +6698,8 @@ function coarseOfflineAdvance(realSeconds,savedScale){
       const maxAge=individualMaxAge(a);
       const ageHazard=a.age>maxAge*.72?.0018*(a.age/maxAge):.00015;
       const poorHealth=(1-a.health/CONFIG.MAX_HEALTH)*.004;
-      if(a.age>maxAge||Math.random()<1-Math.exp(-(ageHazard+poorHealth)*step))removeAgent(a);
+      if(a.age>maxAge)removeAgent(a,'age');
+      else if(Math.random()<1-Math.exp(-(ageHazard+poorHealth)*step))removeAgent(a,'offlineHazard');
     }
     updateEmbryos(Math.min(step,3));
     updateThermodynamics(Math.min(step,2));updateWorldMarks(step);
