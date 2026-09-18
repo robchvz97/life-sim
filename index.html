@@ -384,7 +384,7 @@ if(advancedToggle&&advancedStats){
 }
 if(engineEl) engineEl.textContent='cargando v17.7.10…';
 try{
-  await import('./simulation.js?v=17.7.9');
+  await import('./simulation.js?v=17.7.10');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
