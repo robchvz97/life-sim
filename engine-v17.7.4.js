@@ -6953,7 +6953,9 @@ window.addEventListener('resize',()=>{
 function captureAuditSample(){
   if(!auditReady)return null;
   const pair=currentFertilePairMetrics(2.4);
-  const row={at:new Date().toISOString(),worldAge,paused,timeScale,population:agents.length,
+  const previous=auditSamples.at(-1);
+  const elapsed=previous?(Date.now()-Date.parse(previous.at))/1000:0;
+  const row={at:new Date().toISOString(),worldAge,paused,timeScale,effectiveSpeed:elapsed>0?(worldAge-previous.worldAge)/elapsed:null,population:agents.length,
     embryos:embryos.length,fertile:agents.filter(isFertile).length,energy:averageEnergy(),health:averageHealth(),
     naturalBirths,deaths,rescueInsertions,totalRescueEpisodes,rescuePopulationEpisodes,
     rescueFertilityEpisodes,rescueLoadEpisodes,lastRescueReason,
@@ -6983,7 +6985,7 @@ function validateAuditWorld(value){
 function installAuditControls(){
   const panel=document.createElement('div');panel.style.cssText='margin:10px 0;padding:10px;border:1px solid #759baf;border-radius:8px';
   const status=document.createElement('p');status.id='auditStatus';status.style.cssText='font-size:12px;line-height:1.4';
-  status.textContent=auditOnly?'COPIA DE AUDITORÍA · sin gráficos ni guardado en la partida principal. '+(auditReady?'Copia local cargada, en pausa.':'Carga un informe para comenzar.'):'Auditoría local activa: muestra cada 10 s; conserva las últimas 2160 muestras de esta sesión. Exporta antes de cerrar.';
+  status.textContent=auditOnly?'COPIA DE AUDITORÍA · sin gráficos ni guardado en la partida principal. '+(auditReady?'Copia local cargada. Usa Continuar/Pausar.':'Carga un informe para comenzar.'):'Auditoría local activa: muestra cada 10 s; conserva las últimas 2160 muestras de esta sesión. Exporta antes de cerrar.';
   panel.appendChild(status);
   function button(label,handler){const b=document.createElement('button');b.textContent=label;b.onclick=async()=>{try{await handler();}catch(e){status.textContent=e.message;}};panel.appendChild(b);return b;}
   button('Exportar auditoría + respaldo',()=>{
@@ -7009,7 +7011,7 @@ function installAuditControls(){
       seed();paused=true;auditReady=true;auditSource={kind:'synthetic-test',createdAt:new Date().toISOString()};
       timeScale=100;document.getElementById('speed').value='100';document.getElementById('speedOut').textContent='100×';
       document.getElementById('pause').textContent='Continuar';captureAuditSample();
-      status.textContent='MUNDO DE PRUEBA · no es tu partida. En pausa a 100×; sin guardado.';
+      status.textContent='MUNDO DE PRUEBA · no es tu partida. Objetivo 100×, limitado por rendimiento; sin guardado.';
     });
     const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.style.display='none';panel.appendChild(input);
     button('Cargar copia para auditar',()=>input.click());
@@ -7186,11 +7188,13 @@ function loop(now){
     // Biology/evolution can turbo; rigid mechanics stay physically stable up to 12×.
     const steps=Math.max(1,Math.min(80,Math.ceil(scaled/.05)));
     const dt=Math.min(.05,scaled/steps);
+    const auditFrameStart=performance.now();
     for(let s=0;s<steps;s++){
       worldAge+=dt;updateLivingWorld(dt);updateFood(dt);updateMaterials(dt);updateEmbryos(dt);
       for(const a of [...agents])updateAgent(a,dt);
       resolveHybridAgentOverlaps(dt);
       maintainBiosphereContinuity(dt);
+      if(auditOnly&&performance.now()-auditFrameStart>=30)break;
     }
     stepRigidPhysics(realDt);
   }
