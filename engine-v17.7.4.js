@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.8';
+const ENGINE_VERSION='v17.7.9';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5679,8 +5679,20 @@ function updateAgent(a,dt){
 
   const hungerDrive=clamp(1-a.energy/CONFIG.MAX_ENERGY,0,1);
   const ingestDrive=out[9] + hungerDrive*1.28;
+
+  // v17.7.8 telemetry showed food at carrying capacity while reproductive-age
+  // adults were energy-blocked. Preserve evolved food choice, but strengthen
+  // only the low-level homeostatic reflex when an organism is in a severe
+  // energy deficit and food is already physically visible/reachable.
+  const severeEnergyDeficit=a.energy<CONFIG.REPRO_MIN_ENERGY*.72;
   const contactFeedingReflex=a.energy<67&&hungerDrive>.32;
-  if(p.f&&p.fd<CONFIG.BITE_RADIUS*g.size&&(contactFeedingReflex||ingestDrive>-.08)){
+  const emergencyForageReflex=severeEnergyDeficit&&p.fVisible;
+  if(emergencyForageReflex&&a.decision.mode!==1){
+    const foodAngle=angleTo(a,p.f.mesh.position);
+    const delta=Math.atan2(Math.sin(foodAngle-a.heading),Math.cos(foodAngle-a.heading));
+    a.heading+=clamp(delta,-dt*2.1,dt*2.1);
+  }
+  if(p.f&&p.fd<CONFIG.BITE_RADIUS*g.size&&(contactFeedingReflex||emergencyForageReflex||ingestDrive>-.08)){
     const before=a.energy;
     a.energy=clamp(a.energy+p.f.energy*sunFactor,0,CONFIG.MAX_ENERGY);
     const idx=food.indexOf(p.f);if(idx>=0)food.splice(idx,1);
