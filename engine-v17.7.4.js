@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.7';
+const ENGINE_VERSION='v17.7.8';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5770,11 +5770,21 @@ function updateAgent(a,dt){
       const fertileNow=fertilePopulation();
       const lowBoost=agents.length<12?2.65:agents.length<30?1.72:agents.length<60?1.18:1;
       const fertilityScarcity=fertileNow<4?1.24:fertileNow<8?1.10:1;
-      const replacementPressure=clamp((demo.deaths-demo.births)/10,-.25,.45);
+      // Replacement pressure acts only after two naturally fertile organisms have
+      // already met. v17.7.7 telemetry showed viable/compatible pairs reaching
+      // mating range while recent deaths still exceeded births. The previous
+      // +45% ceiling was too weak to compensate for short, emergent contact
+      // windows at low population. Keep baseline fertility unchanged and make
+      // only the existing demographic feedback responsive to an observed deficit.
+      const replacementDeficit=demo.deaths-demo.births;
+      const replacementPressure=clamp(replacementDeficit/6,-.25,.90);
+      const criticalReplacement=agents.length<18&&replacementDeficit>0
+        ? clamp(replacementDeficit/8,0,.55)
+        : 0;
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
       const fertilityRate=.034*(.16+.42*ea+.42*eb)*(.62+.38*energyReserve)*ecology*
-        lowBoost*fertilityScarcity*(1+replacementPressure)*compatibility;
+        lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*compatibility;
 
       if(Math.random()<1-Math.exp(-dt*fertilityRate)){
         const cost=CONFIG.REPRO_COST*clamp(.54+.10/resourceSupport,.54,.72);
