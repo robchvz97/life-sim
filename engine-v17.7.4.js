@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.12';
+const ENGINE_VERSION='v17.7.13';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5828,8 +5828,17 @@ function updateAgent(a,dt){
         lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*compatibility;
 
       if(Math.random()<1-Math.exp(-dt*fertilityRate)){
-        const cost=CONFIG.REPRO_COST*clamp(.54+.10/resourceSupport,.54,.72);
-        a.energy=Math.max(31,a.energy-cost);mate.energy=Math.max(31,mate.energy-cost*.82);
+        // v17.7.12 cohort telemetry showed a recurrent post-mating energy lock:
+        // recent births/matings were occurring, but many reproductive adults became
+        // energy-blocked immediately afterwards. Keep reproduction costly, while
+        // scaling the one-time parental investment to the energy actually available.
+        // This does not alter fertility, compatibility, mate choice or birth chance.
+        const nominalCost=CONFIG.REPRO_COST*clamp(.54+.10/resourceSupport,.54,.72);
+        const sharedReserve=Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY;
+        const reserveScale=clamp(.72+Math.max(0,sharedReserve)/42,.72,1);
+        const cost=nominalCost*reserveScale;
+        a.energy=Math.max(CONFIG.REPRO_MIN_ENERGY*.78,a.energy-cost);
+        mate.energy=Math.max(CONFIG.REPRO_MIN_ENERGY*.78,mate.energy-cost*.82);
         a.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);mate.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);
 
         const childGenome=recombineGenome(a.genome,mate.genome);
