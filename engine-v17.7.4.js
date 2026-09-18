@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.4';
+const ENGINE_VERSION='v17.7.5';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5009,13 +5009,37 @@ function attack(a,n,intent){
   if(n.health<=0)removeAgent(n);
 }
 
+function nearestFertilePeer(a){
+  let best=null,bd=Infinity;
+  for(const o of agents){
+    if(o===a||!isFertile(o))continue;
+    const d=a.mesh.position.distanceToSquared(o.mesh.position);
+    if(d<bd){bd=d;best=o;}
+  }
+  return best?[best,Math.sqrt(bd)]:[null,999];
+}
 function buildPerception(a){
-  const [f,fd]=nearestFood(a),[n,nd]=nearestAgent(a),[m,md]=nearestMaterial(a),[st,sd]=nearestStructure(a),[mark,markd]=nearestWorldMark(a);
+  const [f,fd]=nearestFood(a),[nearestN,nearestNd]=nearestAgent(a),[m,md]=nearestMaterial(a),[st,sd]=nearestStructure(a),[mark,markd]=nearestWorldMark(a);
   const sensorMaturity=.22+.78*(a.phenotype.devSensor??1);
   const baseSense=CONFIG.SENSE_RADIUS*a.genome.body.sensor*sensorMaturity;
   const visionLight=.34+.66*Math.sqrt(daylightLevel());
   const sense=baseSense*visionLight;
   const hearingSense=baseSense*(.72+.48*a.genome.body.hearing);
+
+  // A fertile peer can be socially salient without creating a mating command.
+  // This fixes a perception bottleneck where the single nearest-agent slot was
+  // permanently occupied by juveniles/non-fertile neighbors. The peer must
+  // still be inside the organism's evolved sensory range, and the neural
+  // decision system remains free to ignore it, approach it or avoid it.
+  let n=nearestN,nd=nearestNd;
+  if(isFertile(a)){
+    const [fertileN,fertileNd]=nearestFertilePeer(a);
+    const socialSalience=1.15+.55*clamp(a.genome.cognition?.mateSelectivity??.5,0,1);
+    if(fertileN&&fertileNd<sense&&(!n||!isFertile(n))&&fertileNd<nearestNd*socialSalience){
+      n=fertileN;nd=fertileNd;
+    }
+  }
+
   const fVisible=f&&fd<sense,nVisible=n&&nd<sense,mVisible=m&&md<CONFIG.MATERIAL_SENSE*a.genome.body.sensor*visionLight,sVisible=st&&sd<sense;
   const markVisible=mark&&markd<sense*.82;
   let mem=null,heardPitch=0,heardAmp=0,heardToken=null,neighborSignals=[0,0,0];
