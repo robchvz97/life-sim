@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.15';
+const ENGINE_VERSION='v17.7.16';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5834,7 +5834,10 @@ function updateAgent(a,dt){
       const resourceSupport=clamp(resourcePerCapita/3.2,.38,1.28);
       const ecology=clamp((1.42-density*1.08)*(.72+.28*resourceSupport),.18,1.52);
       const fertileNow=fertilePopulation();
-      const lowBoost=agents.length<12?2.65:agents.length<30?1.72:agents.length<60?1.18:1;
+      // Low-density populations need enough *natural* reproductive opportunities to
+      // replace two parents. The previous response still produced ~1 mating per
+      // death cohort and repeatedly fell into the rescue threshold.
+      const lowBoost=agents.length<12?4.20:agents.length<24?2.85:agents.length<40?1.55:1;
       const fertilityScarcity=fertileNow<4?1.24:fertileNow<8?1.10:1;
       // Replacement pressure acts only after two naturally fertile organisms have
       // already met. v17.7.7 telemetry showed viable/compatible pairs reaching
@@ -5843,9 +5846,9 @@ function updateAgent(a,dt){
       // windows at low population. Keep baseline fertility unchanged and make
       // only the existing demographic feedback responsive to an observed deficit.
       const replacementDeficit=demo.deaths-demo.births;
-      const replacementPressure=clamp(replacementDeficit/6,-.25,.90);
-      const criticalReplacement=agents.length<18&&replacementDeficit>0
-        ? clamp(replacementDeficit/8,0,.55)
+      const replacementPressure=clamp(replacementDeficit/5,-.20,1.80);
+      const criticalReplacement=agents.length<24&&replacementDeficit>0
+        ? clamp(replacementDeficit/6,0,1.15)
         : 0;
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
@@ -5864,7 +5867,10 @@ function updateAgent(a,dt){
         const cost=nominalCost*reserveScale;
         a.energy=Math.max(reproFloor*.78,a.energy-cost);
         mate.energy=Math.max(reproFloor*.78,mate.energy-cost*.82);
-        a.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);mate.reproCooldown=CONFIG.REPRO_COOLDOWN*rand(.9,1.18);
+        const recoveryNeed=clamp((24-agents.length)/18,0,1)*clamp(replacementDeficit/8,0,1);
+        const cooldownScale=1-.48*recoveryNeed;
+        a.reproCooldown=CONFIG.REPRO_COOLDOWN*cooldownScale*rand(.9,1.18);
+        mate.reproCooldown=CONFIG.REPRO_COOLDOWN*cooldownScale*rand(.9,1.18);
 
         const childGenome=recombineGenome(a.genome,mate.genome);
         const generation=Math.max(a.generation,mate.generation)+1;
