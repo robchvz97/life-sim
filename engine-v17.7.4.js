@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.10';
+const ENGINE_VERSION='v17.7.11';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -2300,10 +2300,21 @@ function recentDemography(){
 }
 function individualMaxAge(a){
   const g=a.genome.body;
-  return (CONFIG.MAX_AGE/Math.max(.45,g.agingRate))*(.75+g.size*.35);
+  // Couple lifespan to the organism's evolved developmental tempo. A slower
+  // developmental program should not consume a disproportionate fraction of
+  // adult life before descendants can replace the parental cohort.
+  const dev=Math.max(18,g.developmentDuration??CONFIG.JUVENILE_END);
+  const devScale=clamp(Math.sqrt(dev/CONFIG.JUVENILE_END),.90,1.18);
+  return (CONFIG.MAX_AGE/Math.max(.45,g.agingRate))*(.75+g.size*.35)*devScale;
 }
 function reproductiveMaxAge(a){
-  return Math.max(CONFIG.MIN_REPRO_AGE+40,individualMaxAge(a)*.84);
+  const maxAge=individualMaxAge(a);
+  const dev=Math.max(CONFIG.MIN_REPRO_AGE,a.genome.body.developmentDuration??CONFIG.JUVENILE_END);
+  // Preserve senescence, but guarantee a reproductive span proportional to
+  // development instead of a fixed 40-unit floor. This improves generational
+  // overlap without changing conception probability or making agents immortal.
+  const minSpan=clamp(dev*2.15,40,72);
+  return Math.min(maxAge*.90,Math.max(CONFIG.MIN_REPRO_AGE+minSpan,maxAge*.86));
 }
 function isFertile(a){
   return a.age>=CONFIG.MIN_REPRO_AGE &&
