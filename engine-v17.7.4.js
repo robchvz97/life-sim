@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.6';
+const ENGINE_VERSION='v17.7.7';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -2341,6 +2341,38 @@ function energyBlockedAdults(){
   let n=0;
   for(const a of agents)if(reproductiveAge(a)&&a.energy<CONFIG.REPRO_MIN_ENERGY)n++;
   return n;
+}
+function reproductiveTelemetry(){
+  const reproductive=agents.filter(reproductiveAge);
+  const fertile=agents.filter(isFertile);
+  let withinSense=0,withinMateRange=0,compatiblePairs=0;
+  let nearest=Infinity,compatSum=0,compatN=0;
+  for(let i=0;i<fertile.length;i++){
+    for(let j=i+1;j<fertile.length;j++){
+      const a=fertile[i],b=fertile[j];
+      const d=a.mesh.position.distanceTo(b.mesh.position);
+      nearest=Math.min(nearest,d);
+      const senseA=CONFIG.SENSE_RADIUS*a.genome.body.sensor*(.22+.78*(a.phenotype.devSensor??1))*(.34+.66*Math.sqrt(daylightLevel()));
+      const senseB=CONFIG.SENSE_RADIUS*b.genome.body.sensor*(.22+.78*(b.phenotype.devSensor??1))*(.34+.66*Math.sqrt(daylightLevel()));
+      if(d<=Math.max(senseA,senseB))withinSense++;
+      if(d<=2.4){
+        withinMateRange++;
+        const c=mateCompatibility(a,b);
+        if(Number.isFinite(c)){compatSum+=c;compatN++;if(c>0)compatiblePairs++;}
+      }
+    }
+  }
+  return {
+    reproductive:reproductive.length,
+    fertile:fertile.length,
+    juveniles:agents.filter(a=>a.age<CONFIG.MIN_REPRO_AGE).length,
+    postReproductive:agents.filter(a=>a.age>=reproductiveMaxAge(a)).length,
+    energyBlocked:energyBlockedAdults(),
+    cooldownBlocked:cooldownBlockedAdults(),
+    withinSense,withinMateRange,compatiblePairs,
+    nearest:Number.isFinite(nearest)?nearest:null,
+    avgCompatibility:compatN?compatSum/compatN:null
+  };
 }
 function cooldownBlockedAdults(){
   let n=0;
@@ -6051,6 +6083,16 @@ function updateHUD(){
   document.getElementById('matingEventsRecent').textContent=matingEventTimes.length;
   document.getElementById('energyBlockedAdults').textContent=energyBlockedAdults();
   document.getElementById('cooldownBlockedAdults').textContent=cooldownBlockedAdults();
+  const rt=reproductiveTelemetry();
+  const setRT=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  setRT('reproAgeAdults',rt.reproductive);
+  setRT('reproJuveniles',rt.juveniles);
+  setRT('reproPostAdults',rt.postReproductive);
+  setRT('reproPairsInSense',rt.withinSense);
+  setRT('reproPairsInRange',rt.withinMateRange);
+  setRT('reproCompatiblePairs',rt.compatiblePairs);
+  setRT('reproNearestAny',rt.nearest==null?'—':rt.nearest.toFixed(2));
+  setRT('reproAvgCompatibility',rt.avgCompatibility==null?'—':rt.avgCompatibility.toFixed(2));
   const gap=timeSinceNaturalBirth();document.getElementById('birthGap').textContent=Number.isFinite(gap)?gap.toFixed(1):'sin nacimientos';
   document.getElementById('newWaterAcquired').textContent=totalEnvironmentalWaterAcquired.toFixed(3);
   document.getElementById('inheritedWater').textContent=inheritedWaterAtLoad.toFixed(3);
