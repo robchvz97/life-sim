@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.11';
+const ENGINE_VERSION='v17.7.12';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -68,6 +68,7 @@ const birthEvents=[];
 const deathEvents=[];
 const deathCauseEvents=[];
 const deathCauseTotals={starvation:0,health:0,age:0,offlineHazard:0,unknown:0};
+const naturalParentAgeEvents=[];
 const mealEvents=[];
 const rescueInsertionEvents=[];
 const rescueEpisodeEvents=[];
@@ -2447,6 +2448,7 @@ function createEmbryo(parent,genome,pos,generation,lineage){
     genome:structuredClone(genome),
     pos:pos.clone(),
     generation,lineage,parentId:parent?.id??null,
+    parentAgeAtConception:parent?.age??null,
     laidAt:worldAge,
     hatchAt:worldAge+rand(5,18),
     expiresAt:worldAge+rand(CONFIG.EMBRYO_MAX_AGE*.72,CONFIG.EMBRYO_MAX_AGE),
@@ -2473,6 +2475,10 @@ function hatchEmbryo(e){
   const child=makeAgent(e.genome,p,e.generation,e.lineage,{parentIds:pids,originSeed:!!e.rescueSeed});
   if(!child)return false;
   child.parentId=pids[0]??null;child.parentIds=pids;
+  if(!e.rescueSeed&&Number.isFinite(e.parentAgeAtConception)){
+    naturalParentAgeEvents.push({t:worldAge,age:e.parentAgeAtConception,generation:e.generation});
+    while(naturalParentAgeEvents.length>500)naturalParentAgeEvents.shift();
+  }
   if(e.rescueSeed){rescueInsertions++;rescueInsertionEvents.push(worldAge);}
   child.energy=clamp(CONFIG.START_ENERGY*(.88+.18*(e.parentalReserve??.55)),49,65);
   child.phenotype.growth=.20+rand(0,.07);
@@ -6153,6 +6159,22 @@ function updateHUD(){
   setRT('deathAgeTotal',deathCauseTotals.age||0);
   setRT('deathOfflineTotal',deathCauseTotals.offlineHazard||0);
   setRT('deathUnknownTotal',deathCauseTotals.unknown||0);
+  const ageBands=[0,0,0,0,0];
+  for(const a of agents){
+    if(a.age<18)ageBands[0]++;
+    else if(a.age<=40)ageBands[1]++;
+    else if(a.age<=80)ageBands[2]++;
+    else if(a.age<=160)ageBands[3]++;
+    else ageBands[4]++;
+  }
+  setRT('ageBand0',ageBands[0]);setRT('ageBand1',ageBands[1]);setRT('ageBand2',ageBands[2]);
+  setRT('ageBand3',ageBands[3]);setRT('ageBand4',ageBands[4]);
+  const recentParentAges=naturalParentAgeEvents.filter(ev=>ev.t>=worldAge-CONFIG.DEMO_WINDOW);
+  const parentAgeAvg=recentParentAges.length?recentParentAges.reduce((n,ev)=>n+ev.age,0)/recentParentAges.length:null;
+  setRT('parentAgeRecent',parentAgeAvg==null?'—':parentAgeAvg.toFixed(1));
+  const recentDeathAges=deathCauseEvents.filter(ev=>ev.t>=worldAge-CONFIG.DEMO_WINDOW);
+  const deathAgeAvg=recentDeathAges.length?recentDeathAges.reduce((n,ev)=>n+ev.age,0)/recentDeathAges.length:null;
+  setRT('deathAgeAverageRecent',deathAgeAvg==null?'—':deathAgeAvg.toFixed(1));
   const gap=timeSinceNaturalBirth();document.getElementById('birthGap').textContent=Number.isFinite(gap)?gap.toFixed(1):'sin nacimientos';
   document.getElementById('newWaterAcquired').textContent=totalEnvironmentalWaterAcquired.toFixed(3);
   document.getElementById('inheritedWater').textContent=inheritedWaterAtLoad.toFixed(3);
