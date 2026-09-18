@@ -36,7 +36,7 @@ function addDemographicDiagnostics(){
 addDemographicDiagnostics();
 
 try{
-  await import('./engine-v17.7.4.js');
+  await import('./engine-v17.7.4.js?v=2');
 }catch(err){
   console.error('[Life Sim v17.7.4] error de arranque',err);
   if(engineEl)engineEl.textContent='v17.7.4 · ERROR';
