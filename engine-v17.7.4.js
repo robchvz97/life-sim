@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.20';
+const ENGINE_VERSION='v17.8.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4847,6 +4847,32 @@ function recalcStructure(s){
   s.stability=clamp(s.totalMass*.10+s.hardness*.42+s.binding*.34+Math.log1p(count)*.13,0,2.5);
   const unique=new Set(s.parts||[]).size;
   s.complexity=clamp(unique*.42+count*.16+(s.modifications||0)*.09+s.binding*.18,0,8);
+  const organization=clamp((s.binding||0)*.38+Math.log1p(count)*.22+unique*.10+(s.modifications||0)*.025,0,1.5);
+  s.stage=(count>=6&&s.stability>=.72&&organization>=.68)?'functional':(count>=4&&s.stability>=.48?'stable':'assembly');
+}
+function rebuildStructureVisual(s){
+  const g=s.group;if(!g)return;
+  for(const o of [...g.children])if(o.userData?.architectureVisual){g.remove(o);o.geometry?.dispose();o.material?.dispose();}
+  const n=Math.max(3,s.parts?.length||3),stable=s.stage!=='assembly',functional=s.stage==='functional';
+  const radius=clamp(.42+n*.045,.52,1.05),height=clamp(.52+n*.055,.65,1.45);
+  const mat=new THREE.MeshStandardMaterial({color:functional?0x80694b:0x6f604a,roughness:.9,metalness:0});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(radius*.92,radius,.10,10),mat.clone());
+  base.position.y=.05;base.userData.architectureVisual=true;g.add(base);
+  if(stable){
+    const posts=Math.min(6,Math.max(3,Math.floor(n/2)));
+    for(let i=0;i<posts;i++){
+      const a=i*Math.PI*2/posts,p=new THREE.Mesh(new THREE.CylinderGeometry(.045,.06,height,6),mat.clone());
+      p.position.set(Math.cos(a)*radius*.72,height/2+.08,Math.sin(a)*radius*.72);p.rotation.z=(i%2?1:-1)*.05;
+      p.userData.architectureVisual=true;g.add(p);
+    }
+  }
+  if(functional){
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(radius*.98,.34,Math.min(8,Math.max(5,n))),mat.clone());
+    roof.position.y=height+.20;roof.rotation.y=(s.id%7)*.31;roof.userData.architectureVisual=true;g.add(roof);
+    const cross=new THREE.Mesh(new THREE.BoxGeometry(radius*1.35,.07,.09),mat.clone());
+    cross.position.y=height*.72;cross.rotation.y=(s.id%5)*.63;cross.userData.architectureVisual=true;g.add(cross);
+  }
+  g.userData.structureStage=s.stage;
 }
 function createStructureFromMaterials(chosen,center){
   if(structures.length>=CONFIG.MAX_STRUCTURES||chosen.length<3)return null;
@@ -4855,41 +4881,15 @@ function createStructureFromMaterials(chosen,center){
   const builders=[...new Set(chosen.map(m=>m.placedBy).filter(v=>v!=null))],parts=[],partProps=[];
   for(const m of chosen){
     m.mesh.parent?.remove(m.mesh);m.mesh.position.sub(center);group.add(m.mesh);
-    parts.push(m.type);partProps.push({...m.props});
+    m.userDataOriginal=true;parts.push(m.type);partProps.push({...m.props});
     const idx=materials.indexOf(m);if(idx>=0)materials.splice(idx,1);
   }
-  const traces=chosen.filter(m=>m.techTrace).map(m=>structuredClone(m.techTrace))
-    .sort((a,b)=>(b.strength||0)-(a.strength||0)).slice(0,6);
-  const builderAgents=builders.map(id=>agents.find(a=>a.id===id)).filter(Boolean);
-  const gens=builderAgents.map(a=>a.generation);
+  const traces=chosen.filter(m=>m.techTrace).map(m=>structuredClone(m.techTrace)).sort((a,b)=>(b.strength||0)-(a.strength||0)).slice(0,6);
+  const builderAgents=builders.map(id=>agents.find(a=>a.id===id)).filter(Boolean),gens=builderAgents.map(a=>a.generation);
   const s={id:nextStructureId++,group,parts,partProps,builders,modifications:0,useTime:0,maxOccupancy:0,lastUsed:worldAge,age:0,
     techArchive:traces,minGeneration:gens.length?Math.min(...gens):null,maxGeneration:gens.length?Math.max(...gens):null,
-    worksiteStrength:.12,worksiteWork:0,worksiteWorkers:[...builders],lastWorkAt:worldAge};
-  recalcStructure(s);
-  // Structures were already being built (v17.7.13 audit: 81 structures and
-  // thousands of shaping events) but were visually indistinguishable from loose
-  // ground material. Add a neutral footprint/marker only after an emergent
-  // structure exists; this does not cause construction or encode a blueprint.
-  const footprint=new THREE.Mesh(
-    new THREE.CylinderGeometry(clamp(.34+chosen.length*.055,.42,.82),clamp(.38+chosen.length*.06,.46,.90),.10,10),
-    new THREE.MeshStandardMaterial({color:0x6b5940,roughness:.92,metalness:0})
-  );
-  footprint.position.y=.05;footprint.userData.structureFootprint=true;group.add(footprint);
-  // Lift and arrange the actual emergent parts into a readable pile/frame. This
-  // is visualization of the materials the organisms assembled, not a blueprint.
-  const structuralParts=group.children.filter(o=>o!==footprint);
-  structuralParts.forEach((o,i)=>{
-    const ring=.24+.055*(i%4),ang=i*2.399;
-    o.position.x=Math.cos(ang)*ring;o.position.z=Math.sin(ang)*ring;
-    o.position.y=.16+(i%3)*.16;
-    o.rotation.y=ang;o.rotation.z=(i%2?1:-1)*.28;
-    o.scale.multiplyScalar(1.18);
-  });
-  const mast=new THREE.Mesh(
-    new THREE.CylinderGeometry(.025,.035,clamp(.45+chosen.length*.045,.55,.95),6),
-    new THREE.MeshStandardMaterial({color:0x8a704c,roughness:.9})
-  );
-  mast.position.set(0,clamp(.45+chosen.length*.045,.55,.95)/2,0);mast.userData.structureMarker=true;group.add(mast);
+    worksiteStrength:.12,worksiteWork:0,worksiteWorkers:[...builders],lastWorkAt:worldAge,stage:'assembly'};
+  recalcStructure(s);rebuildStructureVisual(s);
   structures.push(s);return s;
 }
 function tryAttachMaterialToStructure(a,m){
@@ -4920,7 +4920,7 @@ function tryAttachMaterialToStructure(a,m){
   if(newBuilder&&best.builders.length>=2)recordDiscovery('structure:multi-builder:first','🏗️','Construcción colectiva',`Una estructura fue modificada por más de un constructor.`,best.group.position);
   best.modifications=(best.modifications||0)+1;best.lastUsed=worldAge;
   const idx=materials.indexOf(m);if(idx>=0)materials.splice(idx,1);
-  recalcStructure(best);return true;
+  recalcStructure(best);rebuildStructureVisual(best);return true;
 }
 
 function disposeLooseMaterial(m){
