@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.18';
+const ENGINE_VERSION='v17.7.19';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4899,6 +4899,12 @@ function tryAttachMaterialToStructure(a,m){
   if(!best)return false;
   const worldPos=m.mesh.position.clone();
   m.mesh.parent?.remove(m.mesh);best.group.add(m.mesh);m.mesh.position.copy(worldPos.sub(best.group.position));
+  // Place newly attached material as an actual visible structural element.
+  const slot=best.parts.length;
+  const ang=slot*2.399,ring=.28+.06*(slot%5);
+  m.mesh.position.set(Math.cos(ang)*ring,.18+(slot%4)*.15,Math.sin(ang)*ring);
+  m.mesh.rotation.set((slot%2)*.22,ang,(slot%2?1:-1)*.32);
+  m.mesh.scale.multiplyScalar(1.16);
   best.parts.push(m.type);best.partProps.push({...m.props});
   if(m.techTrace)absorbTraceIntoStructure(best,m.techTrace);
   if(a){
@@ -5872,8 +5878,11 @@ function updateAgent(a,dt){
         : 0;
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
+      const lifetimeReplacement=naturalBirths/Math.max(1,totalDeaths);
+      const structuralDebt=clamp((1-lifetimeReplacement)*1.65,0,1.10);
+      const sustainabilityBoost=agents.length<36?1+structuralDebt:1+structuralDebt*.35;
       const fertilityRate=.034*(.16+.42*ea+.42*eb)*(.62+.38*energyReserve)*ecology*
-        lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*compatibility;
+        lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*sustainabilityBoost*compatibility;
 
       if(Math.random()<1-Math.exp(-dt*fertilityRate)){
         // v17.7.12 cohort telemetry showed a recurrent post-mating energy lock:
@@ -6991,8 +7000,8 @@ function maintainBiosphereContinuity(dt){
   // cohort of juveniles/reproductive-age adults is a natural recovery path.
   // Rescue only after that path is absent for a prolonged interval.
   const naturalRecoveryPool=reproductiveAdults+juveniles+embryos.length;
-  const reproductiveEmergency=agents.length<CONFIG.BIOSPHERE_LOW_POP&&fertile===0&&
-    naturalRecoveryPool<2&&birthGap>CONFIG.RESCUE_BIRTH_GAP*2.2;
+  const reproductiveEmergency=agents.length<=5&&fertile===0&&
+    naturalRecoveryPool<2&&birthGap>CONFIG.RESCUE_BIRTH_GAP*3.2;
 
   if(absoluteEmergency||reproductiveEmergency){
     const rate=absoluteEmergency?.22:.055;
