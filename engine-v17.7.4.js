@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.7.19';
+const ENGINE_VERSION='v17.7.20';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5878,7 +5878,7 @@ function updateAgent(a,dt){
         : 0;
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
-      const lifetimeReplacement=naturalBirths/Math.max(1,totalDeaths);
+      const lifetimeReplacement=naturalBirths/Math.max(1,deaths);
       const structuralDebt=clamp((1-lifetimeReplacement)*1.65,0,1.10);
       const sustainabilityBoost=agents.length<36?1+structuralDebt:1+structuralDebt*.35;
       const fertilityRate=.034*(.16+.42*ea+.42*eb)*(.62+.38*energyReserve)*ecology*
