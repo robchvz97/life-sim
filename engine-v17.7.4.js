@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.8.2';
+const ENGINE_VERSION='v17.9.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -2318,13 +2318,11 @@ function reproductiveMaxAge(a){
   return Math.min(maxAge*.90,Math.max(CONFIG.MIN_REPRO_AGE+minSpan,maxAge*.86));
 }
 function effectiveReproMinEnergy(){
-  // v17.7.14 fresh-world audit: population 11, energy avg 43.3, health 98.5,
-  // food 655, yet only 4 fertile and repeated near-extinction rescues. At low
-  // density the fixed energy threshold created an Allee-effect cliff. Lower the
-  // eligibility floor only as population becomes critically sparse; energy still
-  // continuously controls conception probability below.
   const scarcity=clamp((24-agents.length)/16,0,1);
-  return CONFIG.REPRO_MIN_ENERGY-8*scarcity;
+  const resourceAbundance=clamp((food.length-220)/360,0,1);
+  // Abundant food should not coexist with a large healthy adult cohort excluded
+  // by a rigid energy cliff. This changes eligibility, not conception probability.
+  return CONFIG.REPRO_MIN_ENERGY-8*scarcity-4*resourceAbundance;
 }
 function isFertile(a){
   return a.age>=CONFIG.MIN_REPRO_AGE &&
@@ -4853,40 +4851,35 @@ function recalcStructure(s){
 function rebuildStructureVisual(s){
   const g=s.group;if(!g)return;
   for(const o of [...g.children])if(o.userData?.architectureVisual){g.remove(o);o.geometry?.dispose();o.material?.dispose();}
-  const n=Math.max(3,s.parts?.length||3),stable=s.stage!=='assembly',functional=s.stage==='functional';
-  const pp=s.partProps||[],avg=(k)=>pp.length?pp.reduce((z,p)=>z+(p[k]||0),0)/pp.length:0;
-  const hard=avg('hardness'),bind=avg('bind'),flex=avg('flexibility'),fert=avg('fertility');
-  const long=s.length/Math.max(1,n),ins=s.insulation||0;
-  // Form is an emergent visualization of material affordances, not a prescribed building type.
-  // Hard/long parts bias toward frames; flexible/bound parts toward shelters;
-  // fertile/insulating mixes toward low nests; otherwise toward platforms/cairns.
-  let form='platform';
-  if(flex+bind>hard*.95+.28)form='shelter';
-  else if(hard+long*.22>flex+bind+.48)form='frame';
-  else if(fert+ins>.72)form='nest';
-  else if((s.stability||0)>1.25&&n>=8)form='cairn';
-  s.form=form;
-  const radius=clamp(.38+n*.05,.50,1.18),height=clamp(.42+n*.06,.58,1.55);
-  const baseMat=new THREE.MeshStandardMaterial({color:functional?0x80694b:stable?0x75634a:0x685b49,roughness:.92,metalness:0});
-  const add=(mesh,x,y,z,rx=0,ry=0,rz=0)=>{mesh.position.set(x,y,z);mesh.rotation.set(rx,ry,rz);mesh.userData.architectureVisual=true;g.add(mesh);};
-  if(form==='platform'){
-    add(new THREE.Mesh(new THREE.CylinderGeometry(radius,radius*1.08,.12,Math.min(12,6+n)),baseMat.clone()),0,.06,0);
-    if(stable)for(let i=0;i<Math.min(5,2+Math.floor(n/3));i++){const ang=i*2.399;add(new THREE.Mesh(new THREE.BoxGeometry(radius*1.25,.08,.11),baseMat.clone()),0,.16+i*.07,0,0,ang,(i%2?1:-1)*.05);}
-  }else if(form==='frame'){
-    const posts=Math.min(6,Math.max(3,Math.floor(n/2)));
-    for(let i=0;i<posts;i++){const ang=i*Math.PI*2/posts;add(new THREE.Mesh(new THREE.CylinderGeometry(.04,.055,height,6),baseMat.clone()),Math.cos(ang)*radius*.72,height/2+.05,Math.sin(ang)*radius*.72,0,0,(i%2?1:-1)*.06);}
-    if(stable)for(let i=0;i<Math.min(4,posts);i++){const ang=i*Math.PI/posts;add(new THREE.Mesh(new THREE.BoxGeometry(radius*1.45,.07,.08),baseMat.clone()),0,height*.72+i*.05,0,0,ang,0);}
-  }else if(form==='shelter'){
-    add(new THREE.Mesh(new THREE.CylinderGeometry(radius*.92,radius,0.10,10),baseMat.clone()),0,.05,0);
-    if(stable){const roof=new THREE.Mesh(new THREE.ConeGeometry(radius, height, Math.min(10,5+Math.floor(n/2)),1,true),baseMat.clone());add(roof,0,height*.52,0,0,(s.id%9)*.21,0);}
-  }else if(form==='nest'){
-    add(new THREE.Mesh(new THREE.TorusGeometry(radius*.62,.12,6,12),baseMat.clone()),0,.14,0,Math.PI/2,0,0);
-    if(stable)add(new THREE.Mesh(new THREE.CylinderGeometry(radius*.48,radius*.66,.16,10),baseMat.clone()),0,.08,0);
-    if(functional)for(let i=0;i<Math.min(8,n);i++){const ang=i*Math.PI*2/Math.min(8,n);add(new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,.34,5),baseMat.clone()),Math.cos(ang)*radius*.58,.28,Math.sin(ang)*radius*.58,0,0,ang*.15);}
-  }else{
-    for(let i=0;i<Math.min(10,n);i++){const ang=i*2.399,r=.12+.055*i;const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.13+.012*(i%3),0),baseMat.clone());add(rock,Math.cos(ang)*r,.10+.055*(i%4),Math.sin(ang)*r,0,ang,0);}
+  const physical=g.children.filter(o=>!o.userData?.architectureVisual);
+  if(!physical.length)return;
+  // Architecture is measured from the organisms' actual placements. No template
+  // house/frame/nest is generated. Derived geometry only visualizes connections
+  // that the source parts physically imply.
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  for(const o of physical){minX=Math.min(minX,o.position.x);maxX=Math.max(maxX,o.position.x);minY=Math.min(minY,o.position.y);maxY=Math.max(maxY,o.position.y);minZ=Math.min(minZ,o.position.z);maxZ=Math.max(maxZ,o.position.z);}
+  const spanX=maxX-minX,spanZ=maxZ-minZ,height=Math.max(.05,maxY-minY);
+  s.footprintArea=Math.max(.04,spanX*spanZ);
+  s.height=Math.max(.05,maxY);
+  s.coverage=clamp((s.binding||0)*.22+(s.insulation||0)*.18+physical.length*.018,0,1);
+  s.enclosure=clamp(Math.min(spanX,spanZ)*height*.22+(s.binding||0)*.16,0,1);
+  s.storageCapacity=clamp(s.footprintArea*.18+s.enclosure*.55+(s.partProps||[]).reduce((z,p)=>z+(p.hollowPotential||0)*.06,0),0,2);
+  s.functionalScore=clamp((s.stability||0)*.32+s.coverage*.22+s.enclosure*.18+s.storageCapacity*.16+Math.log1p(s.useTime||0)*.04,0,2);
+  s.stage=s.functionalScore>=.88&&physical.length>=6?'functional':(s.stability>=.52&&physical.length>=4?'stable':'assembly');
+  const mat=new THREE.MeshStandardMaterial({color:s.stage==='functional'?0x8a724f:0x70614b,roughness:.94,metalness:0});
+  if(s.stage!=='assembly'){
+    const maxLinks=Math.min(14,physical.length*2);let links=0;
+    for(let i=0;i<physical.length&&links<maxLinks;i++)for(let j=i+1;j<physical.length&&links<maxLinks;j++){
+      const p=physical[i].position,q=physical[j].position,d=p.distanceTo(q);
+      if(d>.18&&d<.82){
+        const mid=p.clone().add(q).multiplyScalar(.5),dir=q.clone().sub(p);
+        const beam=new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,d,6),mat.clone());
+        beam.position.copy(mid);beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
+        beam.userData.architectureVisual=true;g.add(beam);links++;
+      }
+    }
   }
-  g.userData.structureStage=s.stage;g.userData.structureForm=form;
+  g.userData.structureStage=s.stage;g.userData.functionalScore=s.functionalScore;
 }
 function createStructureFromMaterials(chosen,center){
   if(structures.length>=CONFIG.MAX_STRUCTURES||chosen.length<3)return null;
@@ -4915,10 +4908,8 @@ function tryAttachMaterialToStructure(a,m){
   m.mesh.parent?.remove(m.mesh);best.group.add(m.mesh);m.mesh.position.copy(worldPos.sub(best.group.position));
   // Place newly attached material as an actual visible structural element.
   const slot=best.parts.length;
-  const ang=slot*2.399,ring=.28+.06*(slot%5);
-  m.mesh.position.set(Math.cos(ang)*ring,.18+(slot%4)*.15,Math.sin(ang)*ring);
-  m.mesh.rotation.set((slot%2)*.22,ang,(slot%2?1:-1)*.32);
-  m.mesh.scale.multiplyScalar(1.16);
+  // Keep the organism's actual placement. Only prevent exact coplanar burial.
+  m.mesh.position.y=Math.max(m.mesh.position.y,.06+(slot%3)*.025);
   best.parts.push(m.type);best.partProps.push({...m.props});
   if(m.techTrace)absorbTraceIntoStructure(best,m.techTrace);
   if(a){
@@ -5052,7 +5043,7 @@ function structureEffects(dt){
       recordDiscovery('structure:intergenerational:first','🏚️','Estructura reutilizada entre generaciones',
         'Individuos de generaciones posteriores continuaron usando una construcción creada antes de su nacimiento.',s.group.position);
     }
-    if(s.fertility>1&&food.length<CONFIG.FOOD_MAX&&Math.random()<dt*.025*sunFactor*s.fertility){
+    if(s.stage==='functional'&&s.fertility>1&&food.length<CONFIG.FOOD_MAX&&Math.random()<dt*.018*sunFactor*s.fertility){
       const p=s.group.position.clone();p.x+=rand(-1.2,1.2);p.z+=rand(-1.2,1.2);makeFood(p,rand(4,8));
     }
   }
@@ -5061,7 +5052,7 @@ function structureShelterFactor(a){
   let factor=1;
   for(const s of structures){
     if(a.mesh.position.distanceTo(s.group.position)<1.9){
-      const protection=clamp((s.stability||0)*.055+(s.insulation||0)*.05,0,.26);
+      const protection=s.stage==='functional'?clamp((s.coverage||0)*.12+(s.enclosure||0)*.10+(s.stability||0)*.035,0,.28):0;
       factor*=1-protection;
     }
   }
