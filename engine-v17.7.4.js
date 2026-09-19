@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.9.0';
+const ENGINE_VERSION='v17.9.1';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -1470,6 +1470,7 @@ function makeMaterial(type=null,pos=randomGroundPos(),custom=null){
     traceStrength:custom?.traceStrength||0,traceObservations:custom?.traceObservations||0,
     worksiteStrength:custom?.worksiteStrength||0,worksiteWork:custom?.worksiteWork||0,
     worksiteWorkers:custom?.worksiteWorkers?[...custom.worksiteWorkers]:[],lastWorkAt:custom?.lastWorkAt||0,
+    placementTrace:custom?.placementTrace?structuredClone(custom.placementTrace):null,
     originRegion:custom?.originRegion||regionFor(pos),lastRegion:custom?.lastRegion||regionFor(pos),
     regionalMoves:custom?.regionalMoves||0
   };
@@ -4820,7 +4821,33 @@ function dropMaterial(a,forced=false){
   m.mesh.position.copy(a.mesh.position);
   const fwd=new THREE.Vector3(Math.sin(a.heading),0,Math.cos(a.heading));
   m.mesh.position.addScaledVector(fwd,.6*effectiveManipReach(a));
-  m.mesh.position.y=terrainHeightAt(m.mesh.position)+materialRestY(m.type,m.props);
+  const groundY=terrainHeightAt(m.mesh.position)+materialRestY(m.type,m.props);
+  let support=null,supportTop=groundY;
+  for(const st of structures){
+    const d=st.group.position.distanceTo(m.mesh.position);
+    if(d<1.18){
+      for(const part of st.group.children){
+        if(part.userData?.architectureVisual)continue;
+        const wp=new THREE.Vector3();part.getWorldPosition(wp);
+        const pd=Math.hypot(wp.x-m.mesh.position.x,wp.z-m.mesh.position.z);
+        if(pd<.38&&wp.y>supportTop-.08){support=part;supportTop=Math.max(supportTop,wp.y+.14);}
+      }
+    }
+  }
+  const learned=a.procedureMemory?.library?.size?clamp(a.procedureMemory.library.size/18,0,1):0;
+  const dex=clamp((a.genome.cognition?.planning||.5)*.45+(a.genome.cognition?.imitation||.5)*.25+(a.genome.body?.manipulation||.5)*.30,0,1);
+  const stackChance=clamp(.10+.34*dex+.16*learned,0,.58);
+  if(support&&Math.random()<stackChance){
+    m.mesh.position.y=supportTop;
+    const lean=rand(-.38,.38)*(1-dex*.45);
+    m.mesh.rotation.set(lean,a.heading+rand(-.42,.42),m.type==='fiber'?Math.PI/2+lean:lean);
+  }else{
+    m.mesh.position.y=groundY;
+    m.mesh.rotation.y=a.heading+rand(-.55,.55);
+    if((m.props.length||0)>.65)m.mesh.rotation.z=rand(-.30,.30);
+  }
+  m.placementTrace={relativeHeight:m.mesh.position.y-groundY,heading:m.mesh.rotation.y,tilt:m.mesh.rotation.z,
+    supported:!!support,makerId:a.id,t:worldAge};
   m.placedBy=a.id;m.placedAt=worldAge;m.manipCount=(m.manipCount||0)+1;
   a.carrying=null;m.staticTime=forced?2:0;
   if(!forced)tryAttachMaterialToStructure(a,m);
@@ -4909,7 +4936,7 @@ function tryAttachMaterialToStructure(a,m){
   // Place newly attached material as an actual visible structural element.
   const slot=best.parts.length;
   // Keep the organism's actual placement. Only prevent exact coplanar burial.
-  m.mesh.position.y=Math.max(m.mesh.position.y,.06+(slot%3)*.025);
+  m.mesh.position.y=Math.max(m.mesh.position.y,.035);
   best.parts.push(m.type);best.partProps.push({...m.props});
   if(m.techTrace)absorbTraceIntoStructure(best,m.techTrace);
   if(a){
@@ -5036,6 +5063,18 @@ function structureEffects(dt){
           rememberActivitySite(a,s.group.position,clamp(.18+s.worksiteStrength*.34,0,.72));
         }
         observeStructureTradition(a,s,dt*.55);
+        if(s.stage==='functional'&&(s.functionalScore||0)>.9){
+          const benefit=clamp((s.coverage||0)*.35+(s.enclosure||0)*.25+(s.storageCapacity||0)*.20,0,.22);
+          a.rewardBuffer+=dt*benefit*.004;
+          if(Math.random()<dt*.010*(a.genome.cognition?.imitation||.5)){
+            const placements=s.group.children.filter(o=>!o.userData?.architectureVisual).map(o=>({
+              x:o.position.x,y:o.position.y,z:o.position.z,ry:o.rotation.y,rz:o.rotation.z
+            })).slice(0,12);
+            if(placements.length>=4){
+              s.placementTradition={placements,score:s.functionalScore,observations:(s.placementTradition?.observations||0)+1,lastObserved:worldAge};
+            }
+          }
+        }
       }
     }
     s.maxOccupancy=Math.max(s.maxOccupancy||0,occupancy);
@@ -6569,7 +6608,7 @@ function snapshotStructure(s){
   return {
     id:s.id,pos:vecToArray(s.group.position),parts:s.parts,partProps:s.partProps,
     totalMass:s.totalMass,hardness:s.hardness,fertility:s.fertility,length:s.length,age:s.age,
-    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,stage:s.stage,form:s.form,
+    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,stage:s.stage,form:s.form,placementTradition:structuredClone(s.placementTradition||null),
     builders:s.builders,modifications:s.modifications,useTime:s.useTime,maxOccupancy:s.maxOccupancy,lastUsed:s.lastUsed,
     techArchive:structuredClone(s.techArchive||[]),minGeneration:s.minGeneration,maxGeneration:s.maxGeneration,
     worksiteStrength:s.worksiteStrength||0,worksiteWork:s.worksiteWork||0,
@@ -6661,7 +6700,7 @@ function restoreStructureSnapshot(ss){
     maxOccupancy:ss.maxOccupancy||0,lastUsed:ss.lastUsed||worldAge,age:ss.age||0,
     techArchive:structuredClone(ss.techArchive||[]),minGeneration:ss.minGeneration??null,maxGeneration:ss.maxGeneration??null,
     worksiteStrength:ss.worksiteStrength||0,worksiteWork:ss.worksiteWork||0,
-    worksiteWorkers:[...(ss.worksiteWorkers||[])],lastWorkAt:ss.lastWorkAt||0
+    worksiteWorkers:[...(ss.worksiteWorkers||[])],lastWorkAt:ss.lastWorkAt||0,placementTradition:structuredClone(ss.placementTradition||null)
   };
   recalcStructure(s);
   rebuildStructureVisual(s);
