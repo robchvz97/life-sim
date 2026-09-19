@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Life Sim v17.8.0 — World Audit</title>
+  <title>Life Sim v17.8.1 — World Audit</title>
   <style>
     :root{
       --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
@@ -168,7 +168,7 @@
 
 <div id="hud">
   <div class="hudHeader">
-    <h1>Life Sim v17.8.0 — World Audit</h1>
+    <h1>Life Sim v17.8.1 — World Audit</h1>
     <button id="hudToggle" title="Minimizar panel">−</button>
   </div>
   <div class="sub">
@@ -352,7 +352,7 @@
 </div>
 
 <div id="notice">
-  v17.8.0 corrige las manchas negras del agua. Las celdas húmedas ahora forman una sola geometría de superficie, por lo que las transparencias no se acumulan unas encima de otras.
+  v17.8.1 corrige las manchas negras del agua. Las celdas húmedas ahora forman una sola geometría de superficie, por lo que las transparencias no se acumulan unas encima de otras.
 </div>
 
 <div id="discoveries">
@@ -382,9 +382,9 @@ if(advancedToggle&&advancedStats){
     advancedToggle.querySelector('span:first-child').textContent=open?'Ocultar diagnóstico avanzado':'Diagnóstico avanzado';
   });
 }
-if(engineEl) engineEl.textContent='cargando v17.8.0…';
+if(engineEl) engineEl.textContent='cargando v17.8.1…';
 try{
-  await import('./simulation.js?v=17.8.0');
+  await import('./simulation.js?v=17.8.1');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
