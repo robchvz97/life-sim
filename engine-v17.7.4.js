@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.8.1';
+const ENGINE_VERSION='v17.8.2';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4854,25 +4854,39 @@ function rebuildStructureVisual(s){
   const g=s.group;if(!g)return;
   for(const o of [...g.children])if(o.userData?.architectureVisual){g.remove(o);o.geometry?.dispose();o.material?.dispose();}
   const n=Math.max(3,s.parts?.length||3),stable=s.stage!=='assembly',functional=s.stage==='functional';
-  const radius=clamp(.42+n*.045,.52,1.05),height=clamp(.52+n*.055,.65,1.45);
-  const mat=new THREE.MeshStandardMaterial({color:functional?0x80694b:0x6f604a,roughness:.9,metalness:0});
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(radius*.92,radius,.10,10),mat.clone());
-  base.position.y=.05;base.userData.architectureVisual=true;g.add(base);
-  if(stable){
+  const pp=s.partProps||[],avg=(k)=>pp.length?pp.reduce((z,p)=>z+(p[k]||0),0)/pp.length:0;
+  const hard=avg('hardness'),bind=avg('bind'),flex=avg('flexibility'),fert=avg('fertility');
+  const long=s.length/Math.max(1,n),ins=s.insulation||0;
+  // Form is an emergent visualization of material affordances, not a prescribed building type.
+  // Hard/long parts bias toward frames; flexible/bound parts toward shelters;
+  // fertile/insulating mixes toward low nests; otherwise toward platforms/cairns.
+  let form='platform';
+  if(flex+bind>hard*.95+.28)form='shelter';
+  else if(hard+long*.22>flex+bind+.48)form='frame';
+  else if(fert+ins>.72)form='nest';
+  else if((s.stability||0)>1.25&&n>=8)form='cairn';
+  s.form=form;
+  const radius=clamp(.38+n*.05,.50,1.18),height=clamp(.42+n*.06,.58,1.55);
+  const baseMat=new THREE.MeshStandardMaterial({color:functional?0x80694b:stable?0x75634a:0x685b49,roughness:.92,metalness:0});
+  const add=(mesh,x,y,z,rx=0,ry=0,rz=0)=>{mesh.position.set(x,y,z);mesh.rotation.set(rx,ry,rz);mesh.userData.architectureVisual=true;g.add(mesh);};
+  if(form==='platform'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(radius,radius*1.08,.12,Math.min(12,6+n)),baseMat.clone()),0,.06,0);
+    if(stable)for(let i=0;i<Math.min(5,2+Math.floor(n/3));i++){const ang=i*2.399;add(new THREE.Mesh(new THREE.BoxGeometry(radius*1.25,.08,.11),baseMat.clone()),0,.16+i*.07,0,0,ang,(i%2?1:-1)*.05);}
+  }else if(form==='frame'){
     const posts=Math.min(6,Math.max(3,Math.floor(n/2)));
-    for(let i=0;i<posts;i++){
-      const a=i*Math.PI*2/posts,p=new THREE.Mesh(new THREE.CylinderGeometry(.045,.06,height,6),mat.clone());
-      p.position.set(Math.cos(a)*radius*.72,height/2+.08,Math.sin(a)*radius*.72);p.rotation.z=(i%2?1:-1)*.05;
-      p.userData.architectureVisual=true;g.add(p);
-    }
+    for(let i=0;i<posts;i++){const ang=i*Math.PI*2/posts;add(new THREE.Mesh(new THREE.CylinderGeometry(.04,.055,height,6),baseMat.clone()),Math.cos(ang)*radius*.72,height/2+.05,Math.sin(ang)*radius*.72,0,0,(i%2?1:-1)*.06);}
+    if(stable)for(let i=0;i<Math.min(4,posts);i++){const ang=i*Math.PI/posts;add(new THREE.Mesh(new THREE.BoxGeometry(radius*1.45,.07,.08),baseMat.clone()),0,height*.72+i*.05,0,0,ang,0);}
+  }else if(form==='shelter'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(radius*.92,radius,0.10,10),baseMat.clone()),0,.05,0);
+    if(stable){const roof=new THREE.Mesh(new THREE.ConeGeometry(radius, height, Math.min(10,5+Math.floor(n/2)),1,true),baseMat.clone());add(roof,0,height*.52,0,0,(s.id%9)*.21,0);}
+  }else if(form==='nest'){
+    add(new THREE.Mesh(new THREE.TorusGeometry(radius*.62,.12,6,12),baseMat.clone()),0,.14,0,Math.PI/2,0,0);
+    if(stable)add(new THREE.Mesh(new THREE.CylinderGeometry(radius*.48,radius*.66,.16,10),baseMat.clone()),0,.08,0);
+    if(functional)for(let i=0;i<Math.min(8,n);i++){const ang=i*Math.PI*2/Math.min(8,n);add(new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,.34,5),baseMat.clone()),Math.cos(ang)*radius*.58,.28,Math.sin(ang)*radius*.58,0,0,ang*.15);}
+  }else{
+    for(let i=0;i<Math.min(10,n);i++){const ang=i*2.399,r=.12+.055*i;const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.13+.012*(i%3),0),baseMat.clone());add(rock,Math.cos(ang)*r,.10+.055*(i%4),Math.sin(ang)*r,0,ang,0);}
   }
-  if(functional){
-    const roof=new THREE.Mesh(new THREE.ConeGeometry(radius*.98,.34,Math.min(8,Math.max(5,n))),mat.clone());
-    roof.position.y=height+.20;roof.rotation.y=(s.id%7)*.31;roof.userData.architectureVisual=true;g.add(roof);
-    const cross=new THREE.Mesh(new THREE.BoxGeometry(radius*1.35,.07,.09),mat.clone());
-    cross.position.y=height*.72;cross.rotation.y=(s.id%5)*.63;cross.userData.architectureVisual=true;g.add(cross);
-  }
-  g.userData.structureStage=s.stage;
+  g.userData.structureStage=s.stage;g.userData.structureForm=form;
 }
 function createStructureFromMaterials(chosen,center){
   if(structures.length>=CONFIG.MAX_STRUCTURES||chosen.length<3)return null;
@@ -5879,8 +5893,8 @@ function updateAgent(a,dt){
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
       const lifetimeReplacement=naturalBirths/Math.max(1,deaths);
-      const structuralDebt=clamp((1-lifetimeReplacement)*1.65,0,1.10);
-      const sustainabilityBoost=agents.length<36?1+structuralDebt:1+structuralDebt*.35;
+      const structuralDebt=clamp((1-lifetimeReplacement)*2.05,0,1.35);
+      const sustainabilityBoost=agents.length<40?1+structuralDebt:1+structuralDebt*.45;
       const fertilityRate=.034*(.16+.42*ea+.42*eb)*(.62+.38*energyReserve)*ecology*
         lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*sustainabilityBoost*compatibility;
 
@@ -6564,7 +6578,7 @@ function snapshotStructure(s){
   return {
     id:s.id,pos:vecToArray(s.group.position),parts:s.parts,partProps:s.partProps,
     totalMass:s.totalMass,hardness:s.hardness,fertility:s.fertility,length:s.length,age:s.age,
-    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,stage:s.stage,
+    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,stage:s.stage,form:s.form,
     builders:s.builders,modifications:s.modifications,useTime:s.useTime,maxOccupancy:s.maxOccupancy,lastUsed:s.lastUsed,
     techArchive:structuredClone(s.techArchive||[]),minGeneration:s.minGeneration,maxGeneration:s.maxGeneration,
     worksiteStrength:s.worksiteStrength||0,worksiteWork:s.worksiteWork||0,
