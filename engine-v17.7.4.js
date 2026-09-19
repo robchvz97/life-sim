@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.9.1';
+const ENGINE_VERSION='v17.10.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -91,6 +91,7 @@ let activeBurningMaterials=[];
 const transferEvents=[];
 let totalRegionalTrade=0,totalMateEvents=0;
 let totalShapingEvents=0,totalProcedureCopies=0,totalFluidTransfers=0,totalMechanicalWork=0,totalWaterContacts=0,totalRainCaptures=0;
+let totalPlacedParts=0,totalSupportedPlacements=0,totalStructureStarts=0,totalFunctionalPromotions=0;
 let totalEnvironmentalWaterAcquired=0,inheritedWaterAtLoad=0;
 let nextRecycleAt=0,totalRecycledMaterials=0,totalCollapsedStructures=0;
 const SEASON_LENGTH=95;
@@ -4848,6 +4849,8 @@ function dropMaterial(a,forced=false){
   }
   m.placementTrace={relativeHeight:m.mesh.position.y-groundY,heading:m.mesh.rotation.y,tilt:m.mesh.rotation.z,
     supported:!!support,makerId:a.id,t:worldAge};
+  totalPlacedParts++;if(support)totalSupportedPlacements++;
+  if(support)a.rewardBuffer+=.012*(.55+dex);
   m.placedBy=a.id;m.placedAt=worldAge;m.manipCount=(m.manipCount||0)+1;
   a.carrying=null;m.staticTime=forced?2:0;
   if(!forced)tryAttachMaterialToStructure(a,m);
@@ -4914,7 +4917,9 @@ function createStructureFromMaterials(chosen,center){
   const group=new THREE.Group();group.position.copy(center);structureGroup.add(group);
   const builders=[...new Set(chosen.map(m=>m.placedBy).filter(v=>v!=null))],parts=[],partProps=[];
   for(const m of chosen){
-    m.mesh.parent?.remove(m.mesh);m.mesh.position.sub(center);group.add(m.mesh);
+    const wp=m.mesh.position.clone();
+    m.mesh.parent?.remove(m.mesh);group.add(m.mesh);
+    m.mesh.position.set(wp.x-center.x,Math.max(.035,wp.y-center.y),wp.z-center.z);
     m.userDataOriginal=true;parts.push(m.type);partProps.push({...m.props});
     const idx=materials.indexOf(m);if(idx>=0)materials.splice(idx,1);
   }
@@ -5022,7 +5027,7 @@ function maybeCreateStructure(dt){
     const moved=m.mesh.position.distanceTo(m.lastPos);
     m.staticTime=moved<.015?m.staticTime+dt:0;m.lastPos.copy(m.mesh.position);
   }
-  const candidates=materials.filter(m=>!m.carriedBy&&m.staticTime>1.25&&m.placedBy!=null&&worldAge-(m.placedAt||0)<150&&(m.manipCount||0)>.10);
+  const candidates=materials.filter(m=>!m.carriedBy&&m.staticTime>.72&&m.placedBy!=null&&m.placementTrace&&worldAge-(m.placedAt||0)<190&&(m.manipCount||0)>.10);
   for(const seed of candidates){
     const cluster=candidates.filter(m=>m.mesh.position.distanceTo(seed.mesh.position)<.86);
     if(cluster.length===2){
@@ -5036,7 +5041,7 @@ function maybeCreateStructure(dt){
     if(cluster.length<3)continue;
     const chosen=cluster.slice(0,Math.min(9,cluster.length)),center=new THREE.Vector3();
     chosen.forEach(m=>center.add(m.mesh.position));center.multiplyScalar(1/chosen.length);
-    createStructureFromMaterials(chosen,center);break;
+    const made=createStructureFromMaterials(chosen,center);if(made)totalStructureStarts++;break;
   }
 }
 function structureEffects(dt){
@@ -5078,6 +5083,14 @@ function structureEffects(dt){
       }
     }
     s.maxOccupancy=Math.max(s.maxOccupancy||0,occupancy);
+    const wasStage=s.stage;
+    if(occupancy>0&&(s.modifications||0)>0){
+      s.worksiteWork=(s.worksiteWork||0)+dt*occupancy*.018;
+      s.functionalScore=clamp((s.functionalScore||0)+dt*Math.min(.0012,.00018*occupancy+.00008*(s.modifications||0)),0,2);
+      if(s.functionalScore>=.82&&(s.parts?.length||0)>=5)s.stage='functional';
+      else if((s.stability||0)>=.48&&(s.parts?.length||0)>=4)s.stage='stable';
+      if(wasStage!=='functional'&&s.stage==='functional'){totalFunctionalPromotions++;rebuildStructureVisual(s);}
+    }
     if((s.maxGeneration??0)-(s.minGeneration??0)>=2&&(s.useTime||0)>22){
       recordDiscovery('structure:intergenerational:first','🏚️','Estructura reutilizada entre generaciones',
         'Individuos de generaciones posteriores continuaron usando una construcción creada antes de su nacimiento.',s.group.position);
@@ -5920,7 +5933,7 @@ function updateAgent(a,dt){
       const criticalReplacement=agents.length<24&&replacementDeficit>0
         ? clamp(replacementDeficit/6,0,1.15)
         : 0;
-      const energyReserve=clamp((Math.min(a.energy,mate.energy)-CONFIG.REPRO_MIN_ENERGY)/28,0,1);
+      const energyReserve=clamp((Math.min(a.energy,mate.energy)-reproFloor)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
       const lifetimeReplacement=naturalBirths/Math.max(1,deaths);
       const structuralDebt=clamp((1-lifetimeReplacement)*2.05,0,1.35);
@@ -6260,6 +6273,12 @@ function updateHUD(){
   setRT('reproCompatiblePairs',rt.compatiblePairs);
   setRT('reproNearestAny',rt.nearest==null?'—':rt.nearest.toFixed(2));
   setRT('reproAvgCompatibility',rt.avgCompatibility==null?'—':rt.avgCompatibility.toFixed(2));
+  setRT('constructionPlaced',totalPlacedParts);
+  setRT('constructionSupported',totalSupportedPlacements);
+  setRT('constructionStarts',totalStructureStarts);
+  setRT('constructionFunctional',totalFunctionalPromotions);
+  setRT('constructionStableNow',structures.filter(s=>s.stage==='stable').length);
+  setRT('constructionFunctionalNow',structures.filter(s=>s.stage==='functional').length);
   const recentDeathsByCause={starvation:0,health:0,age:0,offlineHazard:0,unknown:0};
   const deathCutoff=worldAge-CONFIG.DEMO_WINDOW;
   for(const ev of deathCauseEvents)if(ev.t>=deathCutoff)recentDeathsByCause[ev.cause]=(recentDeathsByCause[ev.cause]||0)+1;
