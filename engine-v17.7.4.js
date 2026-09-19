@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.8.0';
+const ENGINE_VERSION='v17.8.1';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -5897,7 +5897,8 @@ function updateAgent(a,dt){
         a.energy=Math.max(reproFloor*.78,a.energy-cost);
         mate.energy=Math.max(reproFloor*.78,mate.energy-cost*.82);
         const recoveryNeed=clamp((24-agents.length)/18,0,1)*clamp(replacementDeficit/8,0,1);
-        const cooldownScale=1-.48*recoveryNeed;
+        const lifetimeDebt=clamp(1-naturalBirths/Math.max(1,deaths),0,1);
+        const cooldownScale=1-clamp(.48*recoveryNeed+.22*lifetimeDebt,0,.58);
         a.reproCooldown=CONFIG.REPRO_COOLDOWN*cooldownScale*rand(.9,1.18);
         mate.reproCooldown=CONFIG.REPRO_COOLDOWN*cooldownScale*rand(.9,1.18);
 
@@ -6563,12 +6564,12 @@ function snapshotStructure(s){
   return {
     id:s.id,pos:vecToArray(s.group.position),parts:s.parts,partProps:s.partProps,
     totalMass:s.totalMass,hardness:s.hardness,fertility:s.fertility,length:s.length,age:s.age,
-    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,
+    binding:s.binding,insulation:s.insulation,resonance:s.resonance,stability:s.stability,complexity:s.complexity,stage:s.stage,
     builders:s.builders,modifications:s.modifications,useTime:s.useTime,maxOccupancy:s.maxOccupancy,lastUsed:s.lastUsed,
     techArchive:structuredClone(s.techArchive||[]),minGeneration:s.minGeneration,maxGeneration:s.maxGeneration,
     worksiteStrength:s.worksiteStrength||0,worksiteWork:s.worksiteWork||0,
     worksiteWorkers:[...(s.worksiteWorkers||[])],lastWorkAt:s.lastWorkAt||0,
-    childPositions:s.group.children.map(c=>vecToArray(c.position))
+    childPositions:s.group.children.filter(c=>!c.userData?.architectureVisual).map(c=>vecToArray(c.position))
   };
 }
 function snapshotWorld(){
@@ -6657,7 +6658,9 @@ function restoreStructureSnapshot(ss){
     worksiteStrength:ss.worksiteStrength||0,worksiteWork:ss.worksiteWork||0,
     worksiteWorkers:[...(ss.worksiteWorkers||[])],lastWorkAt:ss.lastWorkAt||0
   };
-  recalcStructure(s);structures.push(s);
+  recalcStructure(s);
+  rebuildStructureVisual(s);
+  structures.push(s);
 }
 
 function restoreAgentSnapshot(s){
