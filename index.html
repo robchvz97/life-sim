@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Life Sim v18.1.0 — World Audit</title>
+  <title>Life Sim v18.2.0 — World Audit</title>
   <style>
     :root{
       --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
@@ -168,7 +168,7 @@
 
 <div id="hud">
   <div class="hudHeader">
-    <h1>Life Sim v18.1.0 — World Audit</h1>
+    <h1>Life Sim v18.2.0 — World Audit</h1>
     <button id="hudToggle" title="Minimizar panel">−</button>
   </div>
   <div class="sub">
@@ -180,8 +180,6 @@
     <div class="stat">Población<b id="pop">0</b></div>
     <div class="stat">Individuos fértiles<b id="fertileCount">0</b></div>
     <div class="stat">Balance poblacional<b id="popBalance">0</b></div>
-    <div class="stat">Energía promedio<b id="avgEnergy">0</b></div>
-    <div class="stat">Salud promedio<b id="avgHealth">0</b></div>
     <div class="stat">Riesgo demográfico<b id="demographicRisk">estable</b></div>
   </div>
   <div class="sectionTitle">Evolución y cultura</div>
@@ -190,7 +188,6 @@
     <div class="stat">Mayor asentamiento<b id="settlementSize">0</b></div>
     <div class="stat">Comprensión comunicativa<b id="languageScore">0</b></div>
     <div class="stat">Procedimientos tecnológicos<b id="techProcedures">0</b></div>
-    <div class="stat">Agua almacenada<b id="storedWater">0</b></div>
   </div>
   <div class="sectionTitle">Sociedad</div>
   <div class="grid essentialGrid">
@@ -205,7 +202,6 @@
     <div class="stat">Nacimientos naturales<b id="births">0</b></div>
     <div class="stat">Muertes<b id="deaths">0</b></div>
     <div class="stat">Edad del mundo<b id="age">0.0</b></div>
-    <div class="stat">Alimento<b id="food">0</b></div>
     <div class="stat">Materiales<b id="materials">0</b></div>
     <div class="stat">Estructuras<b id="structures">0</b></div>
     <div class="stat">Artefactos compuestos<b id="artifacts">0</b></div>
@@ -275,12 +271,9 @@
     <div class="stat">Embriones dormantes<b id="embryoCount">0</b></div>
     <div class="stat">Archivo evolutivo<b id="archiveCount">0</b></div>
     <div class="stat">Recolonizaciones<b id="recolonizations">0</b></div>
-    <div class="stat">Comidas últimos 100<b id="recentMeals">0</b></div>
     <div class="stat">Rescate demográfico<b id="rescueState">inactivo</b></div>
     <div class="stat">Individuos de rescate<b id="rescueInsertions">0</b></div>
     <div class="stat">Rescates últimos 100<b id="recentRescues">0</b></div>
-    <div class="stat">Agua nueva adquirida<b id="newWaterAcquired">0</b></div>
-    <div class="stat">Agua heredada al cargar<b id="inheritedWater">0</b></div>
     <div class="stat">Persistencia<b id="persistState">iniciando…</b></div>
     <div class="stat">Último guardado<b id="lastSave">—</b></div>
     <div class="stat">Tiempo recuperado<b id="offlineAdvance">0</b></div>
@@ -338,7 +331,7 @@
   <div class="legend">
     <b>Navegación:</b> escritorio: clic izquierdo rota, derecho desplaza, rueda zoom. Móvil: 1 dedo rota, 2 dedos desplazan y pellizcan para zoom; joystick mueve el mapa.
     <br><br>
-    <b>Lectura rápida:</b> si población, fertilidad, energía y salud están estables, mira después cultura y sociedad.
+    <b>Lectura rápida:</b> observa primero población y continuidad generacional; después comunicación, construcción, cultura y sociedad.
     Abre <b>Diagnóstico avanzado</b> solo cuando necesitemos investigar un sistema específico.
   </div>
 </div>
@@ -352,7 +345,7 @@
 </div>
 
 <div id="notice">
-  v18.1.0 corrige las manchas negras del agua. Las celdas húmedas ahora forman una sola geometría de superficie, por lo que las transparencias no se acumulan unas encima de otras.
+  v18.2.0 elimina del panel los indicadores de supervivencia obsoletos. Cognitive World se centra en generaciones, cognición, construcción, comunicación y cultura.
 </div>
 
 <div id="discoveries">
@@ -382,9 +375,9 @@ if(advancedToggle&&advancedStats){
     advancedToggle.querySelector('span:first-child').textContent=open?'Ocultar diagnóstico avanzado':'Diagnóstico avanzado';
   });
 }
-if(engineEl) engineEl.textContent='cargando v18.1.0…';
+if(engineEl) engineEl.textContent='cargando v18.2.0…';
 try{
-  await import('./simulation.js?v=18.1.0');
+  await import('./simulation.js?v=18.2.0');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
