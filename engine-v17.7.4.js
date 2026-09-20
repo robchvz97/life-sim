@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.10.1';
+const ENGINE_VERSION='v17.10.2';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4824,6 +4824,12 @@ function dropMaterial(a,forced=false){
   m.mesh.position.addScaledVector(fwd,.6*effectiveManipReach(a));
   const groundY=terrainHeightAt(m.mesh.position)+materialRestY(m.type,m.props);
   let support=null,supportTop=groundY;
+  // Loose intentionally placed pieces can support later pieces and seed a real 3D assembly.
+  for(const lm of materials){
+    if(lm===m||lm.carriedBy||lm.placedBy==null||!lm.placementTrace)continue;
+    const pd=Math.hypot(lm.mesh.position.x-m.mesh.position.x,lm.mesh.position.z-m.mesh.position.z);
+    if(pd<.36&&lm.mesh.position.y>supportTop-.08){support=lm.mesh;supportTop=Math.max(supportTop,lm.mesh.position.y+.14);}
+  }
   for(const st of structures){
     const d=st.group.position.distanceTo(m.mesh.position);
     if(d<1.18){
@@ -4853,7 +4859,7 @@ function dropMaterial(a,forced=false){
   if(support)a.rewardBuffer+=.012*(.55+dex);
   m.placedBy=a.id;m.placedAt=worldAge;m.manipCount=(m.manipCount||0)+1;
   a.carrying=null;m.staticTime=forced?2:0;
-  if(!forced)tryAttachMaterialToStructure(a,m);
+  if(!forced&&m.placementTrace&&(m.placementTrace.supported||m.placementTrace.relativeHeight>.10))tryAttachMaterialToStructure(a,m);
 }
 function updateCarriedMaterial(a){
   const m=a.carrying;if(!m)return;
@@ -5022,7 +5028,8 @@ function runWorldRecycling(){
 }
 
 function maybeCreateStructure(dt){
-  if(structures.length>=CONFIG.STRUCTURE_RECYCLE_TARGET+14)return;
+  const activeStructures=structures.filter(s=>s.stage!=='assembly'||(s.modifications||0)>0||worldAge-(s.lastUsed||0)<90).length;
+  if(activeStructures>=CONFIG.STRUCTURE_RECYCLE_TARGET+14)return;
   for(const m of materials){
     if(m.carriedBy)continue;
     const moved=m.mesh.position.distanceTo(m.lastPos);
@@ -5937,7 +5944,7 @@ function updateAgent(a,dt){
       const energyReserve=clamp((Math.min(a.energy,mate.energy)-reproFloor)/28,0,1);
       const compatibility=clamp(mateCompatibility(a,mate)+.18,.12,1.35);
       const lifetimeReplacement=naturalBirths/Math.max(1,deaths);
-      const structuralDebt=clamp((1-lifetimeReplacement)*2.05,0,1.35);
+      const structuralDebt=clamp((1-lifetimeReplacement)*2.35,0,1.55);
       const sustainabilityBoost=agents.length<40?1+structuralDebt:1+structuralDebt*.45;
       const fertilityRate=.034*(.16+.42*ea+.42*eb)*(.62+.38*energyReserve)*ecology*
         lowBoost*fertilityScarcity*(1+replacementPressure+criticalReplacement)*sustainabilityBoost*compatibility;
@@ -6648,6 +6655,7 @@ function snapshotWorld(){
     nextMarkId,totalThermalTransforms,totalIgnitions,totalMotorImitations,totalExternalReads,
     totalRegionalTrade,totalMateEvents,transferEvents:[...transferEvents],
     totalShapingEvents,totalProcedureCopies,totalFluidTransfers,totalMechanicalWork,totalWaterContacts,totalRainCaptures,
+    totalPlacedParts,totalSupportedPlacements,totalStructureStarts,totalFunctionalPromotions,
     totalEnvironmentalWaterAcquired,inheritedWaterAtLoad,
     nextRecycleAt,totalRecycledMaterials,totalCollapsedStructures,
     worldMarks:worldMarks.map(m=>({id:m.id,pattern:m.pattern,pos:vecToArray(m.pos),angle:m.angle,creatorId:m.creatorId,createdAt:m.createdAt,strength:m.strength,uses:m.uses,reads:m.reads,lastUsed:m.lastUsed})),
