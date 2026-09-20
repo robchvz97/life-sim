@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v18.1.0';
+const ENGINE_VERSION='v18.2.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -6156,7 +6156,7 @@ function updateHUD(){
   document.getElementById('births').textContent=naturalBirths;
   document.getElementById('deaths').textContent=deaths;
   document.getElementById('age').textContent=worldAge.toFixed(1);
-  document.getElementById('food').textContent=food.length;
+  {const el=document.getElementById('food');if(el)el.textContent=food.length;}
   document.getElementById('materials').textContent=materials.length;
   document.getElementById('structures').textContent=structures.length;
   const settlement=settlementMetrics(),languagePop=languagePopulationMetrics();
@@ -6177,7 +6177,7 @@ function updateHUD(){
   if(currentSocialGroups>0)recordDiscovery('social:group:first','👥','Primer grupo social persistente','Tres o más individuos forman una red local de parentesco, afinidad o reputación positiva.');
   document.getElementById('regionalTrade').textContent=totalRegionalTrade;
   document.getElementById('seasonLabel').textContent=seasonPhase().name;
-  document.getElementById('storedWater').textContent=totalStoredWater().toFixed(2);
+  {const el=document.getElementById('storedWater');if(el)el.textContent=totalStoredWater().toFixed(2);}
   document.getElementById('containers').textContent=containerCount();
   document.getElementById('mechanisms').textContent=mechanismCount();
   document.getElementById('shapingEvents').textContent=totalShapingEvents;
@@ -6245,9 +6245,9 @@ function updateHUD(){
   document.getElementById('recolonizations').textContent=recolonizations;
   document.getElementById('demographicRisk').textContent=demographicRiskLabel();
   pruneMealEvents();
-  document.getElementById('avgEnergy').textContent=averageEnergy().toFixed(1);
-  document.getElementById('avgHealth').textContent=averageHealth().toFixed(1);
-  document.getElementById('recentMeals').textContent=mealEvents.length;
+  {const el=document.getElementById('avgEnergy');if(el)el.textContent=averageEnergy().toFixed(1);}
+  {const el=document.getElementById('avgHealth');if(el)el.textContent=averageHealth().toFixed(1);}
+  {const el=document.getElementById('recentMeals');if(el)el.textContent=mealEvents.length;}
   document.getElementById('rescueState').textContent=demographicRescueActive?'activo':'inactivo';
   pruneRescueEvents();pruneDemographicDiagnosticEvents();
   document.getElementById('rescueInsertions').textContent=rescueInsertions;
@@ -6311,8 +6311,8 @@ function updateHUD(){
   const deathAgeAvg=recentDeathAges.length?recentDeathAges.reduce((n,ev)=>n+ev.age,0)/recentDeathAges.length:null;
   setRT('deathAgeAverageRecent',deathAgeAvg==null?'—':deathAgeAvg.toFixed(1));
   const gap=timeSinceNaturalBirth();document.getElementById('birthGap').textContent=Number.isFinite(gap)?gap.toFixed(1):'sin nacimientos';
-  document.getElementById('newWaterAcquired').textContent=totalEnvironmentalWaterAcquired.toFixed(3);
-  document.getElementById('inheritedWater').textContent=inheritedWaterAtLoad.toFixed(3);
+  {const el=document.getElementById('newWaterAcquired');if(el)el.textContent=totalEnvironmentalWaterAcquired.toFixed(3);}
+  {const el=document.getElementById('inheritedWater');if(el)el.textContent=inheritedWaterAtLoad.toFixed(3);}
   const langMilestone=languagePopulationMetrics();
   if(langMilestone.shared>0)recordDiscovery('language:shared:first','🔊','Primera convención vocal compartida',`${langMilestone.shared} símbolo(s) son reconocidos por más de un individuo.`);
   if(sharedExternalSymbols()>0)recordDiscovery('marks:shared:first','✎','Primer símbolo externo compartido',`Una marca persistente ya es reconocida por varios organismos.`);
