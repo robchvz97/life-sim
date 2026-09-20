@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.10.2';
+const ENGINE_VERSION='v18.0.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -27,14 +27,14 @@ try{
   console.error('Rapier no pudo cargar; usando locomoción híbrida de respaldo.',err);
 }
 
-const MODE_NAMES=['inercia','comida','ser cercano','material','estructura','recuerdo','zona nueva','evitación'];
+const MODE_NAMES=['inercia','curiosidad','ser cercano','material','estructura','recuerdo','zona nueva','evitación'];
 const MODE_COUNT=8;
 
 const CONFIG={
   WORLD:36, START_AGENTS:64, START_FOOD:280, START_MATERIALS:120,
   MAX_AGENTS:280, FOOD_MAX:650, MATERIAL_MAX:360, MAX_STRUCTURES:180,
   MATERIAL_RECYCLE_TARGET:318, STRUCTURE_RECYCLE_TARGET:148,
-  FOOD_RESPAWN:1.90, MATERIAL_RESPAWN:.08,
+  FOOD_RESPAWN:.22, MATERIAL_RESPAWN:.10,
   BASE_METABOLISM:.160, MOVE_COST:.088, WATER_DRAIN:.12,
   START_ENERGY:58, MAX_ENERGY:100, MAX_HEALTH:100, MAX_AGE:310,
   REPRO_MIN_ENERGY:48, REPRO_COST:18, REPRO_COOLDOWN:8.5,
@@ -55,6 +55,7 @@ const CONFIG={
   TERRAIN_HEIGHT_SCALE:3.15, TERRAIN_MAX_SLOPE:1.45
 };
 
+const COGNITIVE_WORLD=true;
 let mutationRate=.10, sunFactor=1, timeScale=1, paused=false, worldAge=0;
 let births=0,deaths=0,naturalBirths=0,rescueInsertions=0,nextId=1,nextMaterialId=1,nextStructureId=1;
 let totalMentalSims=0,totalImitations=0;
@@ -2329,7 +2330,7 @@ function effectiveReproMinEnergy(){
 function isFertile(a){
   return a.age>=CONFIG.MIN_REPRO_AGE &&
     a.age<reproductiveMaxAge(a) &&
-    a.energy>=effectiveReproMinEnergy() &&
+    (COGNITIVE_WORLD||a.energy>=effectiveReproMinEnergy()) &&
     a.health>56 &&
     a.reproCooldown<=0;
 }
@@ -2362,7 +2363,7 @@ function currentFertilePairMetrics(maxDist=2.4){
 }
 function energyBlockedAdults(){
   let n=0;
-  for(const a of agents)if(reproductiveAge(a)&&a.energy<effectiveReproMinEnergy())n++;
+  for(const a of agents)if(reproductiveAge(a)&&!COGNITIVE_WORLD&&a.energy<effectiveReproMinEnergy())n++;
   return n;
 }
 function reproductiveTelemetry(){
@@ -3189,7 +3190,7 @@ function destroyAgentMesh(a){
 
 function inferDeathCause(a,explicit=null){
   if(explicit)return explicit;
-  if(a.energy<=0)return 'starvation';
+  if(!COGNITIVE_WORLD&&a.energy<=0)return 'starvation';
   if(a.health<=0)return 'health';
   if(a.age>individualMaxAge(a))return 'age';
   return 'unknown';
@@ -5815,21 +5816,28 @@ function updateAgent(a,dt){
   const youthCostFactor=a.age<CONFIG.JUVENILE_END ? (.54+.46*juvenileFrac) : 1;
   const basal=(CONFIG.BASE_METABOLISM*(.72+g.size*.28+g.segments*.03)+brainCost+nerveCost+tissueCost)*youthCostFactor;
   const motorCost=(a.motor?.effort||0)*.0065*g.jointStrength;
-  a.energy-=dt*(basal+moveCost*youthCostFactor+carryCost+motorCost+(inPond(a.mesh.position)?CONFIG.WATER_DRAIN*(.22+.78*clamp(speed/Math.max(.4,g.speed),0,1.4)):0))*shelter;
+  if(COGNITIVE_WORLD){
+    const effort=clamp((moveCost+carryCost+motorCost)*.20,0,.18);
+    const socialStim=p.nVisible?.025:0, noveltyStim=noveltyAt(a,a.mesh.position)*.018;
+    const target=76+socialStim*100+noveltyStim*100;
+    a.energy=clamp(a.energy+dt*((target-a.energy)*.055-effort),34,CONFIG.MAX_ENERGY);
+  }else{
+    a.energy-=dt*(basal+moveCost*youthCostFactor+carryCost+motorCost+(inPond(a.mesh.position)?CONFIG.WATER_DRAIN*(.22+.78*clamp(speed/Math.max(.4,g.speed),0,1.4)):0))*shelter;
+  }
 
   // Curiosity reward: discovering under-visited space is intrinsically useful.
   const novelty=noveltyAt(a,a.mesh.position);
   a.rewardBuffer+=dt*novelty*.012*t.curiosity*t.exploration*clamp((a.energy-24)/42,.12,1);
 
-  const hungerDrive=clamp(1-a.energy/CONFIG.MAX_ENERGY,0,1);
-  const ingestDrive=out[9] + hungerDrive*1.28;
+  const hungerDrive=COGNITIVE_WORLD?0:clamp(1-a.energy/CONFIG.MAX_ENERGY,0,1);
+  const ingestDrive=COGNITIVE_WORLD?out[9]*.18:out[9] + hungerDrive*1.28;
 
   // v17.7.8 telemetry showed food at carrying capacity while reproductive-age
   // adults were energy-blocked. Preserve evolved food choice, but strengthen
   // only the low-level homeostatic reflex when an organism is in a severe
   // energy deficit and food is already physically visible/reachable.
-  const severeEnergyDeficit=a.energy<effectiveReproMinEnergy()*.72;
-  const contactFeedingReflex=a.energy<67&&hungerDrive>.32;
+  const severeEnergyDeficit=!COGNITIVE_WORLD&&a.energy<effectiveReproMinEnergy()*.72;
+  const contactFeedingReflex=!COGNITIVE_WORLD&&a.energy<67&&hungerDrive>.32;
   const emergencyForageReflex=severeEnergyDeficit&&p.fVisible;
   if(emergencyForageReflex&&a.decision.mode!==1){
     const foodAngle=angleTo(a,p.f.mesh.position);
@@ -6006,7 +6014,7 @@ function updateAgent(a,dt){
   a.rewardBuffer+=energyDelta*.012+healthDelta*.02+a.affect.valence*.0008;
   a.lastEnergy=a.energy;a.lastHealth=a.health;
 
-  if(a.energy<=0)removeAgent(a,'starvation');
+  if(!COGNITIVE_WORLD&&a.energy<=0)removeAgent(a,'starvation');
   else if(a.health<=0)removeAgent(a,'health');
   else if(a.age>individualMaxAge(a))removeAgent(a,'age');
 }
@@ -7070,14 +7078,14 @@ function maintainBiosphereContinuity(dt){
   const fertile=fertilePopulation();
   const birthGap=timeSinceNaturalBirth();
 
-  const absoluteEmergency=agents.length<=3&&embryos.length===0;
+  const absoluteEmergency=agents.length<=2&&embryos.length===0;
   const reproductiveAdults=agents.filter(reproductiveAge).length;
   const juveniles=agents.filter(a=>a.age<CONFIG.MIN_REPRO_AGE).length;
   // Do not call a rescue merely because today's fertile count is zero. A living
   // cohort of juveniles/reproductive-age adults is a natural recovery path.
   // Rescue only after that path is absent for a prolonged interval.
   const naturalRecoveryPool=reproductiveAdults+juveniles+embryos.length;
-  const reproductiveEmergency=agents.length<=5&&fertile===0&&
+  const reproductiveEmergency=agents.length<=3&&fertile===0&&
     naturalRecoveryPool<2&&birthGap>CONFIG.RESCUE_BIRTH_GAP*3.2;
 
   if(absoluteEmergency||reproductiveEmergency){
