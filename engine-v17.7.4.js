@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v18.0.0';
+const ENGINE_VERSION='v18.1.0';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -31,10 +31,10 @@ const MODE_NAMES=['inercia','curiosidad','ser cercano','material','estructura','
 const MODE_COUNT=8;
 
 const CONFIG={
-  WORLD:36, START_AGENTS:64, START_FOOD:280, START_MATERIALS:120,
-  MAX_AGENTS:280, FOOD_MAX:650, MATERIAL_MAX:360, MAX_STRUCTURES:180,
+  WORLD:36, START_AGENTS:64, START_FOOD:0, START_MATERIALS:160,
+  MAX_AGENTS:280, FOOD_MAX:0, MATERIAL_MAX:420, MAX_STRUCTURES:180,
   MATERIAL_RECYCLE_TARGET:318, STRUCTURE_RECYCLE_TARGET:148,
-  FOOD_RESPAWN:.22, MATERIAL_RESPAWN:.10,
+  FOOD_RESPAWN:0, MATERIAL_RESPAWN:.12,
   BASE_METABOLISM:.160, MOVE_COST:.088, WATER_DRAIN:.12,
   START_ENERGY:58, MAX_ENERGY:100, MAX_HEALTH:100, MAX_AGE:310,
   REPRO_MIN_ENERGY:48, REPRO_COST:18, REPRO_COOLDOWN:8.5,
@@ -2322,7 +2322,7 @@ function reproductiveMaxAge(a){
 }
 function effectiveReproMinEnergy(){
   const scarcity=clamp((24-agents.length)/16,0,1);
-  const resourceAbundance=clamp((food.length-220)/360,0,1);
+  const resourceAbundance=COGNITIVE_WORLD?0:clamp((food.length-220)/360,0,1);
   // Abundant food should not coexist with a large healthy adult cohort excluded
   // by a rigid energy cliff. This changes eligibility, not conception probability.
   return CONFIG.REPRO_MIN_ENERGY-8*scarcity-4*resourceAbundance;
@@ -2331,7 +2331,7 @@ function isFertile(a){
   return a.age>=CONFIG.MIN_REPRO_AGE &&
     a.age<reproductiveMaxAge(a) &&
     (COGNITIVE_WORLD||a.energy>=effectiveReproMinEnergy()) &&
-    a.health>56 &&
+    (COGNITIVE_WORLD||a.health>56) &&
     a.reproCooldown<=0;
 }
 function averageAge(){
@@ -2341,7 +2341,7 @@ function fertilePopulation(){
   let n=0;for(const a of agents)if(isFertile(a))n++;return n;
 }
 function reproductiveAge(a){
-  return a.age>=CONFIG.MIN_REPRO_AGE && a.age<reproductiveMaxAge(a) && a.health>56;
+  return a.age>=CONFIG.MIN_REPRO_AGE && a.age<reproductiveMaxAge(a) && (COGNITIVE_WORLD||a.health>56);
 }
 function currentFertilePairMetrics(maxDist=2.4){
   const fertile=agents.filter(isFertile);
@@ -3095,7 +3095,7 @@ function updateMorphology(a,dt,speed){
   const envC=environmentTemperatureAt(a.mesh.position);
   const thermalEnv=inPond(a.mesh.position)?0.28:clamp((envC-5)/80,0,1);
   p.bodyTemp=clamp(p.bodyTemp + (thermalEnv-p.bodyTemp)*dt*.55,0,1);
-  if(envC>95){const thermalDamage=(envC-95)/260;a.health-=dt*thermalDamage*.65;a.rewardBuffer-=dt*thermalDamage*.035;}
+  if(envC>95){const thermalSignal=clamp((envC-95)/260,0,1);queueNerveSignal(a,'temperature',thermalSignal,3,.01);a.rewardBuffer-=dt*thermalSignal*.004;}
 
   // Aging gradually degrades condition after late adulthood.
   const ageFrac=a.age/Math.max(1,individualMaxAge(a));
@@ -3204,10 +3204,6 @@ function removeAgent(a,cause=null){
   deathCauseTotals[deathCause]=(deathCauseTotals[deathCause]||0)+1;
   enrichSoilAt(a.mesh.position,.045);
   if(a.carrying)dropMaterial(a,true);
-  const drops=Math.max(1,Math.min(6,Math.round(a.energy/11)+2));
-  for(let k=0;k<drops;k++){
-    const p=a.mesh.position.clone();p.x+=rand(-.7,.7);p.z+=rand(-.7,.7);makeFood(p,rand(3.8,7.8));
-  }
   if(Math.random()<.85)makeMaterial('biomass',a.mesh.position.clone());
   destroyAgentMesh(a);agents.splice(i,1);deaths++;
   if(selectedAgent===a){selectedAgent=null;document.getElementById('selected').style.display='none';}
@@ -5104,9 +5100,7 @@ function structureEffects(dt){
       recordDiscovery('structure:intergenerational:first','🏚️','Estructura reutilizada entre generaciones',
         'Individuos de generaciones posteriores continuaron usando una construcción creada antes de su nacimiento.',s.group.position);
     }
-    if(s.stage==='functional'&&s.fertility>1&&food.length<CONFIG.FOOD_MAX&&Math.random()<dt*.018*sunFactor*s.fertility){
-      const p=s.group.position.clone();p.x+=rand(-1.2,1.2);p.z+=rand(-1.2,1.2);makeFood(p,rand(4,8));
-    }
+
   }
 }
 function structureShelterFactor(a){
@@ -5171,8 +5165,8 @@ function attack(a,n,intent){
     Math.max(.55,targetMorph.durability),
     .8,16
   );
-  n.health=clamp(n.health-damage,0,CONFIG.MAX_HEALTH);
-  a.energy=Math.max(0,a.energy-(.7+.3*attackerMorph.mass)*weaponFactor);
+  n.health=CONFIG.MAX_HEALTH;
+  a.energy=Math.max(34,a.energy-.8);
   queueNerveSignal(n,'pain',clamp(damage/10,0,1),1,.02);
   queueNerveSignal(a,'pressure',clamp(.18+damage/30,0,1),3,.01);
   const targetMemory=memoryFor(n,a);
@@ -5196,7 +5190,7 @@ function nearestFertilePeer(a){
   return best?[best,Math.sqrt(bd)]:[null,999];
 }
 function buildPerception(a){
-  const [f,fd]=nearestFood(a),[nearestN,nearestNd]=nearestAgent(a),[m,md]=nearestMaterial(a),[st,sd]=nearestStructure(a),[mark,markd]=nearestWorldMark(a);
+  const f=null,fd=999,[nearestN,nearestNd]=nearestAgent(a),[m,md]=nearestMaterial(a),[st,sd]=nearestStructure(a),[mark,markd]=nearestWorldMark(a);
   const sensorMaturity=.22+.78*(a.phenotype.devSensor??1);
   const baseSense=CONFIG.SENSE_RADIUS*a.genome.body.sensor*sensorMaturity;
   const visionLight=.34+.66*Math.sqrt(daylightLevel());
@@ -5801,7 +5795,7 @@ function updateAgent(a,dt){
   applyMorphologyVisual(a);
   const morph2=morphologyMetrics(a);
 
-  const shelter=structureShelterFactor(a);
+  const shelter=1;
   const substrateEffort=(1/terrainMovementFactor(a.mesh.position))*terrainEffortMultiplier(a);
   const moveCost=(speed/Math.max(.4,g.speed))*CONFIG.MOVE_COST*(.78+morph2.mass*.16)*substrateEffort;
   const carryCost=a.carrying?effectiveMaterialMass(a.carrying)*.045/Math.max(.45,morph2.strength):0;
@@ -5909,16 +5903,9 @@ function updateAgent(a,dt){
   applyFluidAndMechanics(a,p,manipIntent,dt);
   updateCarriedMaterial(a);
 
-  if(a.carrying&&a.carrying.temperature>75){
-    const hot=clamp((a.carrying.temperature-70)/280,0,1);queueNerveSignal(a,'temperature',hot,3,.01);if(hot>.45){a.health-=dt*hot*.18;a.rewardBuffer-=dt*hot*.008;}
-  }
+  if(a.carrying&&a.carrying.temperature>75){const hot=clamp((a.carrying.temperature-70)/280,0,1);queueNerveSignal(a,'temperature',hot,3,.01);a.rewardBuffer-=dt*hot*.002;}
 
-  if(a.carrying&&a.carrying.type==='biomass'&&out[9]>.58&&a.energy<90){
-    a.energy=clamp(a.energy+a.carrying.props.energy*2,0,CONFIG.MAX_ENERGY);
-    const mm=a.carrying;a.carrying=null;a.mesh.remove(mm.mesh);mm.mesh.geometry.dispose();mm.mesh.material.dispose();
-    const idx=materials.indexOf(mm);if(idx>=0)materials.splice(idx,1);
-    a.rewardBuffer+=.10;
-  }
+
 
   // Reproduction now requires two nearby fertile organisms and recombines both genomes.
   if(isFertile(a) && agents.length+embryos.length<CONFIG.MAX_AGENTS+CONFIG.EMBRYO_MAX){
@@ -5929,9 +5916,7 @@ function updateAgent(a,dt){
       const eb=clamp((mate.energy-reproFloor)/(CONFIG.MAX_ENERGY-reproFloor),0,1);
       const density=agents.length/CONFIG.MAX_AGENTS;
       const demo=recentDemography();
-      const resourcePerCapita=food.length/Math.max(1,agents.length);
-      const resourceSupport=clamp(resourcePerCapita/3.2,.38,1.28);
-      const ecology=clamp((1.42-density*1.08)*(.72+.28*resourceSupport),.18,1.52);
+      const ecology=clamp(1.42-density*1.08,.32,1.52);
       const fertileNow=fertilePopulation();
       // Low-density populations need enough *natural* reproductive opportunities to
       // replace two parents. The previous response still produced ~1 mating per
@@ -6015,11 +6000,12 @@ function updateAgent(a,dt){
   a.lastEnergy=a.energy;a.lastHealth=a.health;
 
   if(!COGNITIVE_WORLD&&a.energy<=0)removeAgent(a,'starvation');
-  else if(a.health<=0)removeAgent(a,'health');
+  else if(!COGNITIVE_WORLD&&a.health<=0)removeAgent(a,'health');
   else if(a.age>individualMaxAge(a))removeAgent(a,'age');
 }
 
 function updateFood(dt){
+  if(COGNITIVE_WORLD){if(food.length){for(const f of food){foodGroup.remove(f.mesh);f.mesh.geometry?.dispose();f.mesh.material?.dispose();}food.length=0;}return;}
   const emptyFrac=1-food.length/CONFIG.FOOD_MAX;
   const ecologicalRecovery=.55+1.35*clamp(emptyFrac,0,1);
   const env= livingWorldMetrics();
