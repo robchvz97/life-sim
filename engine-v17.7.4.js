@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
-const ENGINE_VERSION='v17.10.0';
+const ENGINE_VERSION='v17.10.1';
 let auditOnly=new URLSearchParams(location.search).get('audit')==='1';
 let auditSource=null,auditReady=false;
 const auditSamples=[];
@@ -4898,7 +4898,8 @@ function rebuildStructureVisual(s){
   s.stage=s.functionalScore>=.88&&physical.length>=6?'functional':(s.stability>=.52&&physical.length>=4?'stable':'assembly');
   const mat=new THREE.MeshStandardMaterial({color:s.stage==='functional'?0x8a724f:0x70614b,roughness:.94,metalness:0});
   if(s.stage!=='assembly'){
-    const maxLinks=Math.min(14,physical.length*2);let links=0;
+    const mobileLite=matchMedia?.('(max-width: 760px)')?.matches||((navigator.deviceMemory||8)<=4);
+    const maxLinks=(s.stage==='functional'||(s.functionalScore||0)>.82)?Math.min(mobileLite?4:10,physical.length*2):0;let links=0;
     for(let i=0;i<physical.length&&links<maxLinks;i++)for(let j=i+1;j<physical.length&&links<maxLinks;j++){
       const p=physical[i].position,q=physical[j].position,d=p.distanceTo(q);
       if(d>.18&&d<.82){
@@ -4986,7 +4987,7 @@ function collapseStructureForRecycling(s){
   const idx=structures.indexOf(s);if(idx<0)return;
   const pos=s.group.position.clone(),parts=s.parts||[],props=s.partProps||[];
   structures.splice(idx,1);structureGroup.remove(s.group);
-  s.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
+  s.group.traverse(o=>{if(o.userData?.architectureVisual){if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}});
   totalCollapsedStructures++;
 
   const salvage=Math.min(2,parts.length);
@@ -6785,6 +6786,8 @@ function restoreWorld(s){
   totalMotorImitations=s.totalMotorImitations||0;totalExternalReads=s.totalExternalReads||0;
   totalRegionalTrade=s.totalRegionalTrade||0;totalMateEvents=s.totalMateEvents||0;
   totalShapingEvents=s.totalShapingEvents||0;totalProcedureCopies=s.totalProcedureCopies||0;
+  totalPlacedParts=s.totalPlacedParts||0;totalSupportedPlacements=s.totalSupportedPlacements||0;
+  totalStructureStarts=s.totalStructureStarts||0;totalFunctionalPromotions=s.totalFunctionalPromotions||0;
   totalFluidTransfers=s.totalFluidTransfers||0;totalMechanicalWork=s.totalMechanicalWork||0;totalWaterContacts=s.totalWaterContacts||0;totalRainCaptures=s.totalRainCaptures||0;
   totalEnvironmentalWaterAcquired=s.totalEnvironmentalWaterAcquired||0;
   nextRecycleAt=s.nextRecycleAt||worldAge;totalRecycledMaterials=s.totalRecycledMaterials||0;totalCollapsedStructures=s.totalCollapsedStructures||0;
