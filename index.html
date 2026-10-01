@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Life Sim — Sociedad</title>
+  <title>Life Sim — Redes abiertas</title>
   <style>
     :root{
       --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
@@ -168,7 +168,7 @@
 
 <div id="hud">
   <div class="hudHeader">
-    <h1>Life Sim — Sociedad</h1>
+    <h1>Life Sim — Redes abiertas</h1>
     <button id="hudToggle" title="Minimizar panel">−</button>
   </div>
   <div class="sub">
@@ -189,7 +189,7 @@
     <div class="stat">Comprensión comunicativa<b id="languageScore">0</b></div>
     <div class="stat">Procedimientos tecnológicos<b id="techProcedures">0</b></div>
   </div>
-  <div class="sectionTitle">Sociedad</div>
+  <div class="sectionTitle">Redes abiertas</div>
   <div class="grid essentialGrid">
     <div class="stat">Grupos sociales<b id="socialGroups">0</b></div>
     <div class="stat">Relaciones recíprocas<b id="reciprocalLinks">0</b></div>
@@ -377,7 +377,7 @@ if(advancedToggle&&advancedStats){
 }
 if(engineEl) engineEl.textContent='cargando constructores…';
 try{
-  await import('./simulation.js?v=19.2.0');
+  await import('./simulation.js?v=19.3.0');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
