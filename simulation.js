@@ -1,9 +1,9 @@
 // Life Sim v19 — solo construcción.
-document.title = 'Life Sim — Mente y obra';
+document.title = 'Life Sim — Sociedad';
 const title = document.querySelector('#hud h1');
-if (title) title.textContent = 'Life Sim — Mente y obra';
+if (title) title.textContent = 'Life Sim — Sociedad';
 try {
-  await import('./engine-construct.js?v=19.1.0');
+  await import('./engine-construct.js?v=19.2.0');
 } catch (err) {
   console.error(err);
   const notice = document.getElementById('notice');
