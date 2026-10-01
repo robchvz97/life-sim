@@ -42,7 +42,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.8.1</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.8.2</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -58,7 +58,7 @@ panel.innerHTML = `
         <div class="stat">Altura máxima<b id="mHeight">0</b></div>
       </div>
       <div style="margin-top:10px"><button class="ctrl" id="bPause">Pausar</button><button class="ctrl" id="bSpeed">Velocidad 1×</button><button class="ctrl" id="bRefresh">Actualizar</button></div>
-      <div id="buildLog">Dos dedos hacen zoom. La cámara sigue al grupo si no mueves el joystick.</div>
+      <div id="buildLog">Cuerpos en escena: 12. Son esferas de color alrededor de la amarilla.</div>
     </div>
   </div>`;
 document.body.appendChild(panel);
@@ -201,22 +201,13 @@ class Net {
 
 function makeBody(hue) {
   const g = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.75, 0.62) });
-  const limb = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.4, 0.78) });
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.42, 4, 8), mat);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat);
-  head.position.y = 0.48;
-  g.add(torso, head);
-  const legs = [], arms = [];
-  for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.34, 3, 6), limb);
-    leg.position.set(side * 0.14, -0.42, 0);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.28, 3, 6), limb);
-    arm.position.set(side * 0.36, 0.12, 0);
-    g.add(leg, arm);
-    legs.push(leg); arms.push(arm);
-  }
-  return { g, legs, arms, mat };
+  const color = new THREE.Color().setHSL(hue, 0.85, 0.58);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), new THREE.MeshBasicMaterial({ color }));
+  body.position.y = 0.55;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff1c9 }));
+  head.position.y = 1.15;
+  g.add(body, head);
+  return { g, legs: [body, body], arms: [head, head] };
 }
 
 const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffd56a }));
@@ -226,8 +217,8 @@ const agents = [];
 for (let i = 0; i < N; i++) {
   const body = makeBody(i / N);
   const ang = (i / N) * Math.PI * 2;
-  body.g.position.set(Math.cos(ang) * 1.6, 0.9, Math.sin(ang) * 1.6);
-  body.g.scale.setScalar(2.8);
+  body.g.position.set(Math.cos(ang) * 2.2, 0, Math.sin(ang) * 2.2);
+  body.g.scale.setScalar(1.4);
   const pin = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe08a }));
   pin.position.y = 1.1; body.g.add(pin);
   scene.add(body.g);
@@ -248,8 +239,8 @@ function act(a, dt) {
   const before = [a.g.position.y / 3, a.vy, a.signal[0], a.signal[1]];
   const o = a.net.step(sense(a));
   a.heading += o[0] * dt * 1.6;
-  const stride = Math.max(0.15, (o[1] + 1) * 0.55);
-  const speed = stride * 1.4;
+  const stride = Math.max(0, o[1]);
+  const speed = 0.35 + stride * 0.8;
   a.g.position.x = clamp(a.g.position.x + Math.sin(a.heading) * speed * dt, -WORLD + 1, WORLD - 1);
   a.g.position.z = clamp(a.g.position.z + Math.cos(a.heading) * speed * dt, -WORLD + 1, WORLD - 1);
   const grounded = a.g.position.y <= 0.72;
@@ -392,6 +383,7 @@ function frame(now) {
     document.getElementById('mSignals').textContent = signalBins();
     document.getElementById('mAlign').textContent = `${Math.round(num(alignment()) * 100)}%`;
     document.getElementById('mAir').textContent = air;
+    const log = document.getElementById('buildLog'); if (log) log.textContent = `Cuerpos en escena: ${agents.length}. El más cercano está a ${agents.length ? agents[0].g.position.distanceTo(beacon.position).toFixed(1) : '?'} de la esfera.`;
     document.getElementById('mHeight').textContent = maxH;
     const c = document.getElementById('skillChart'), g = c.getContext('2d');
     g.clearRect(0, 0, c.width, c.height); g.strokeStyle = '#9fd0ff'; g.lineWidth = 3; g.beginPath();
