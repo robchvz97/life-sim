@@ -42,7 +42,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.8.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.8.1</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -58,7 +58,7 @@ panel.innerHTML = `
         <div class="stat">Altura máxima<b id="mHeight">0</b></div>
       </div>
       <div style="margin-top:10px"><button class="ctrl" id="bPause">Pausar</button><button class="ctrl" id="bSpeed">Velocidad 1×</button><button class="ctrl" id="bRefresh">Actualizar</button></div>
-      <div id="buildLog">Si ves la esfera amarilla, la cámara está en el centro. El joystick mueve esa vista.</div>
+      <div id="buildLog">Dos dedos hacen zoom. La cámara sigue al grupo si no mueves el joystick.</div>
     </div>
   </div>`;
 document.body.appendChild(panel);
@@ -106,6 +106,15 @@ function rendererSetup() {
     lx = e.clientX; ly = e.clientY; aim();
   });
   window.__lifeRenderer = renderer;
+  let pinch = 0;
+  renderer.domElement.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2) return;
+    e.preventDefault();
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (pinch) radius = clamp(radius * (pinch / d), 4, 36);
+    pinch = d; aim();
+  }, {passive:false});
+  renderer.domElement.addEventListener('touchend', () => { pinch = 0; });
 }
 if (nav) nav.style.setProperty('display', 'flex', 'important');
 const pad = document.getElementById('movePad');
@@ -217,8 +226,8 @@ const agents = [];
 for (let i = 0; i < N; i++) {
   const body = makeBody(i / N);
   const ang = (i / N) * Math.PI * 2;
-  body.g.position.set(Math.cos(ang) * 3.2, 0.7, Math.sin(ang) * 3.2);
-  body.g.scale.setScalar(2.2);
+  body.g.position.set(Math.cos(ang) * 1.6, 0.9, Math.sin(ang) * 1.6);
+  body.g.scale.setScalar(2.8);
   const pin = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe08a }));
   pin.position.y = 1.1; body.g.add(pin);
   scene.add(body.g);
@@ -239,12 +248,12 @@ function act(a, dt) {
   const before = [a.g.position.y / 3, a.vy, a.signal[0], a.signal[1]];
   const o = a.net.step(sense(a));
   a.heading += o[0] * dt * 1.6;
-  const stride = Math.max(0, o[1]);
-  const speed = stride * 2.4;
+  const stride = Math.max(0.15, (o[1] + 1) * 0.55);
+  const speed = stride * 1.4;
   a.g.position.x = clamp(a.g.position.x + Math.sin(a.heading) * speed * dt, -WORLD + 1, WORLD - 1);
   a.g.position.z = clamp(a.g.position.z + Math.cos(a.heading) * speed * dt, -WORLD + 1, WORLD - 1);
   const grounded = a.g.position.y <= 0.72;
-  if (grounded && o[2] > 0.55) a.vy = 1.6 + o[2] * 2.2;
+  if (grounded && o[2] > 0.72) a.vy = 2.2 + o[2];
   a.vy -= 4.2 * dt;
   a.g.position.y = Math.max(0.7, a.g.position.y + a.vy * dt);
   if (a.g.position.y <= 0.72) { a.g.position.y = 0.7; if (a.vy < 0) a.vy = 0; a.air = 0; }
@@ -267,7 +276,7 @@ function act(a, dt) {
   const changed = after.reduce((s, v, i) => s + Math.abs(v - before[i]), 0);
   const surprise = after.reduce((s, v, i) => s + Math.abs(v - (a.net._g[i] || 0)), 0);
   a.net.learn(placed * 0.3 + changed * 0.4 - (changed < 0.03 ? 0.05 : surprise * 0.2), changed < 0.03 ? before : after);
-  if (changed < 0.03) a.net.err = Math.max(a.net.err, 0.4);
+  
 }
 function signalBins() {
   const bins = new Set();
@@ -357,8 +366,13 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const right = Math.cos(theta), forward = -Math.sin(theta);
-  look.x = clamp(look.x + (pan.x * right + pan.z * Math.sin(theta)) * dt * 10, -WORLD, WORLD);
-  look.z = clamp(look.z + (pan.x * forward + pan.z * Math.cos(theta)) * dt * 10, -WORLD, WORLD);
+  if (Math.abs(pan.x) + Math.abs(pan.z) < 0.05 && agents.length) {
+    look.x += (agents.reduce((s, a) => s + a.g.position.x, 0) / agents.length - look.x) * 0.04;
+    look.z += (agents.reduce((s, a) => s + a.g.position.z, 0) / agents.length - look.z) * 0.04;
+  } else {
+    look.x = clamp(look.x + (pan.x * right + pan.z * Math.sin(theta)) * dt * 14, -WORLD, WORLD);
+    look.z = clamp(look.z + (pan.x * forward + pan.z * Math.cos(theta)) * dt * 14, -WORLD, WORLD);
+  }
   aim();
   const sim = dt * (paused ? 0 : speed);
   acc += sim;
