@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Life Sim v18.2.0 — World Audit</title>
+  <title>Life Sim — Constructores</title>
   <style>
     :root{
       --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
@@ -168,7 +168,7 @@
 
 <div id="hud">
   <div class="hudHeader">
-    <h1>Life Sim v18.2.0 — World Audit</h1>
+    <h1>Life Sim — Constructores</h1>
     <button id="hudToggle" title="Minimizar panel">−</button>
   </div>
   <div class="sub">
@@ -375,9 +375,9 @@ if(advancedToggle&&advancedStats){
     advancedToggle.querySelector('span:first-child').textContent=open?'Ocultar diagnóstico avanzado':'Diagnóstico avanzado';
   });
 }
-if(engineEl) engineEl.textContent='cargando v18.2.0…';
+if(engineEl) engineEl.textContent='cargando constructores…';
 try{
-  await import('./simulation.js?v=18.2.0');
+  await import('./simulation.js?v=19.0.0');
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';
