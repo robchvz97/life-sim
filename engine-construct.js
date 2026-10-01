@@ -11,7 +11,7 @@ const TYPES = [
   { h: 0.9, color: 0xd9c7a4 }
 ];
 
-for (const id of ['hud', 'discoveries', 'notice', 'selected', 'extinction', 'mobileGestureHint']) {
+for (const id of ['hud', 'discoveries', 'notice', 'selected', 'extinction', 'mobileGestureHint', 'mobileNav']) {
   const el = document.getElementById(id);
   if (el) el.style.display = 'none';
 }
@@ -47,7 +47,7 @@ panel.innerHTML = `
       <div class="stat">Altura máxima<b id="mHeight">0</b></div>
     </div>
     <div style="margin-top:10px"><button id="bPause">Pausar</button><button id="bSpeed">Velocidad 1×</button></div>
-    <div id="buildLog">Observando. Nada de esto está ordenado.</div>
+    <div id="buildLog">El error solo baja si predicen un cambio propio. Quedarse quietos no cuenta.</div>
   </div>`;
 document.body.appendChild(panel);
 
@@ -151,11 +151,11 @@ class Net {
   }
 }
 
-const geo = new THREE.CapsuleGeometry(0.26, 0.5, 3, 8);
+const geo = new THREE.CapsuleGeometry(0.42, 0.7, 4, 10);
 const agents = [];
 for (let i = 0; i < N; i++) {
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xc9b89a }));
-  mesh.position.set(rand(-8, 8), 0.65, rand(-8, 8));
+  mesh.position.set(rand(-6, 6), 0.9, rand(-6, 6));
   scene.add(mesh);
   const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf0d78a, transparent: true, opacity: 0.0 }));
   scene.add(pulse);
@@ -198,7 +198,11 @@ function act(a, dt) {
   const after = sense(a).slice(0, 6);
   const predicted = a.net._g;
   const surprise = after.reduce((s, v, i) => s + Math.abs(v - (predicted[i] || 0)), 0);
-  a.net.learn(placed * 0.35 - surprise * 0.15, after);
+  const changed = after.reduce((s, v, i) => s + Math.abs(v - before[i]), 0);
+  // El suelo quieto no enseña nada: solo cuenta predecir un cambio que ellos provocan.
+  const reward = placed * 0.4 + changed * 0.55 - (changed < 0.04 ? 0.08 : surprise * 0.25);
+  a.net.learn(reward, changed < 0.04 ? before : after);
+  if (changed < 0.04) a.net.err = Math.max(a.net.err, 0.45);
 }
 function signalBins() {
   const bins = new Set();
