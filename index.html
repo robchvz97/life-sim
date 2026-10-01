@@ -27,7 +27,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="top"><span id="ver">v20.0.0</span><button id="hide">–</button></div>
+  <div id="top"><span id="ver">v20.0.1</span><button id="hide">–</button></div>
   <div class="body">
     <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — desde cero</h1>
     <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Terreno y cuerpos. La red mueve, abre la boca y emite una señal. No hay idioma ni grupos escritos.</p>
@@ -275,9 +275,6 @@ function frame(now){
   if (Math.abs(panX)+Math.abs(panZ) > 0.05){
     look.x = clamp(look.x + (panX*Math.cos(theta) + panZ*Math.sin(theta))*dt*12, -WORLD, WORLD);
     look.z = clamp(look.z + (panX*-Math.sin(theta) + panZ*Math.cos(theta))*dt*12, -WORLD, WORLD);
-  } else if (agents.length){
-    look.x += (agents.reduce((s,a)=>s+a.g.position.x,0)/agents.length - look.x)*0.03;
-    look.z += (agents.reduce((s,a)=>s+a.g.position.z,0)/agents.length - look.z)*0.03;
   }
   aim();
   acc += dt * (paused?0:speed);
