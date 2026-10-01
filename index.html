@@ -158,7 +158,7 @@
     }
   </style>
 </head>
-<body>
+<body>\n<div id="bootVer" style="position:fixed;top:8px;right:8px;z-index:80;background:#1d4e78;color:#f0d78a;font:800 13px/1 sans-serif;padding:8px 10px;border-radius:10px">v19.6.0</div>
 <div id="app"></div>
 <div id="mobileNav" aria-label="Navegación móvil">
   <div id="movePad" aria-label="Mover cámara"><div id="moveKnob"></div></div>
@@ -377,7 +377,7 @@ if(advancedToggle&&advancedStats){
 }
 if(engineEl) engineEl.textContent='cargando constructores…';
 try{
-  await import('./simulation.js?v=19.5.0');
+  await import('./simulation.js?v=19.6.0&t=' + Date.now());
 }catch(err){
   console.error('Life Sim no pudo iniciar:',err);
   if(engineEl) engineEl.textContent='ERROR AL CARGAR';

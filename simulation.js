@@ -3,7 +3,7 @@ document.title = 'Life Sim — Redes abiertas';
 const title = document.querySelector('#hud h1');
 if (title) title.textContent = 'Life Sim — Redes abiertas';
 try {
-  await import('./engine-construct.js?v=19.5.0');
+  await import('./engine-construct.js?v=19.6.0');
 } catch (err) {
   console.error(err);
   const notice = document.getElementById('notice');

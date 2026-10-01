@@ -40,7 +40,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.5.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.6.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -277,6 +277,66 @@ function alignment() {
   }
   return n ? s / n : 0;
 }
+const SAVE = 'lifesim-open-v196';
+function pack() {
+  return {
+    t: Date.now(), held, maxH,
+    blocks: [...cell.entries()].slice(-350).map(([kk, v]) => [kk, v.type]),
+    agents: agents.map(a => ({
+      x: a.g.position.x, y: a.g.position.y, z: a.g.position.z,
+      heading: a.heading, vy: a.vy, phase: a.phase, signal: a.signal,
+      nH: a.net.nH, err: a.net.err, w1: a.net.w1, w2: a.net.w2, pred: a.net.pred
+    }))
+  };
+}
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(pack())); } catch (e) {} }
+function restoreBlocks(list) {
+  for (const [kk, type] of list || []) {
+    const [x, z, y] = kk.split('|').map(Number);
+    if (cell.has(kk)) continue;
+    const mesh = new THREE.Mesh(geos[type], mats[type]);
+    let base = 0;
+    for (let i = 0; i < y; i++) { const under = cell.get(key(x, z, i)); if (under) base += TYPES[under.type].h; }
+    mesh.position.set(x, base + TYPES[type].h / 2, z);
+    scene.add(mesh);
+    cell.set(kk, { type });
+  }
+  held = cell.size; maxH = 0;
+  for (const kk of cell.keys()) maxH = Math.max(maxH, Number(kk.split('|')[2]) + 1);
+}
+function restore(data) {
+  if (!data || !data.agents) return 0;
+  restoreBlocks(data.blocks);
+  data.agents.forEach((s, i) => {
+    const a = agents[i]; if (!a) return;
+    a.g.position.set(s.x, s.y, s.z);
+    a.heading = s.heading; a.vy = s.vy; a.phase = s.phase; a.signal = s.signal || a.signal;
+    a.net.nH = s.nH; a.net.err = s.err; a.net.w1 = s.w1; a.net.w2 = s.w2; a.net.pred = s.pred;
+    a.net.e1 = s.w1.map(r => r.map(() => 0));
+    a.net.e2 = s.w2.map(r => r.map(() => 0));
+  });
+  return Math.max(0, Date.now() - (data.t || Date.now()));
+}
+let caught = '';
+try {
+  const raw = localStorage.getItem(SAVE);
+  if (raw) {
+    const missed = restore(JSON.parse(raw));
+    const seconds = Math.min(45 * 60, missed / 1000);
+    if (seconds > 20) {
+      const log = document.getElementById('buildLog');
+      if (log) log.textContent = `Recuperando ${Math.round(seconds / 60)} min con la app cerrada…`;
+      const steps = Math.floor(seconds / 0.05);
+      for (let i = 0; i < steps; i++) for (const a of agents) act(a, 0.05);
+      caught = `Al abrir, avanzaron ${Math.round(seconds / 60)} min que el teléfono no calculó en vivo.`;
+      if (log) log.textContent = caught;
+    }
+  }
+} catch (e) {}
+window.addEventListener('pagehide', save);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+setInterval(save, 8000);
+
 let paused = false, speed = 1, acc = 0, last = performance.now(), sample = 0, startErr = 0;
 const history = [];
 document.getElementById('bPause').onclick = e => { paused = !paused; e.target.textContent = paused ? 'Seguir' : 'Pausar'; };
