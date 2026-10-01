@@ -42,7 +42,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.7.2</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.8.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -58,7 +58,7 @@ panel.innerHTML = `
         <div class="stat">Altura máxima<b id="mHeight">0</b></div>
       </div>
       <div style="margin-top:10px"><button class="ctrl" id="bPause">Pausar</button><button class="ctrl" id="bSpeed">Velocidad 1×</button><button class="ctrl" id="bRefresh">Actualizar</button></div>
-      <div id="buildLog">El joystick de abajo mueve la cámara, no a las criaturas.</div>
+      <div id="buildLog">Si ves la esfera amarilla, la cámara está en el centro. El joystick mueve esa vista.</div>
     </div>
   </div>`;
 document.body.appendChild(panel);
@@ -72,10 +72,10 @@ if (innerWidth < 800) { hud.classList.add('hidden'); document.getElementById('hi
 const app = document.getElementById('app');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101820);
-scene.fog = new THREE.FogExp2(0x101820, 0.02);
+scene.fog = new THREE.FogExp2(0x101820, 0.012);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 180);
-const look = new THREE.Vector3(0, 1.2, 0);
-let theta = 0.55, phi = 1.15, radius = 16, dragging = false, lx = 0, ly = 0;
+const look = new THREE.Vector3(0, 0.8, 0);
+let theta = 0.6, phi = 1.05, radius = 11, dragging = false, lx = 0, ly = 0;
 const pan = { x: 0, z: 0 };
 function aim() {
   const s = Math.sin(phi);
@@ -107,31 +107,28 @@ function rendererSetup() {
   });
   window.__lifeRenderer = renderer;
 }
-const camPad = document.createElement('div');
-camPad.innerHTML = `<style>
-  #camPad{position:fixed;left:16px;bottom:24px;width:118px;height:118px;border-radius:50%;z-index:40;
-    background:rgba(16,28,40,.72);border:1px solid rgba(180,205,225,.35);touch-action:none}
-  #camKnob{position:absolute;left:37px;top:37px;width:44px;height:44px;border-radius:50%;background:rgba(199,226,244,.4);border:1px solid rgba(220,240,255,.5)}
-  #camHome{position:fixed;left:146px;bottom:58px;z-index:40;width:46px;height:46px;border-radius:50%;border:1px solid #30465d;background:rgba(17,30,42,.9);color:#e8f0f7;font-size:18px}
-</style><div id="camPad"><div id="camKnob"></div></div><button id="camHome">⌖</button>`;
-document.body.appendChild(camPad);
-const pad = document.getElementById('camPad');
-const knob = document.getElementById('camKnob');
+if (nav) nav.style.setProperty('display', 'flex', 'important');
+const pad = document.getElementById('movePad');
+const knob = document.getElementById('moveKnob');
 const set = (cx, cy) => {
   const r = pad.getBoundingClientRect();
-  const x = clamp(cx - r.left - r.width / 2, -40, 40);
-  const y = clamp(cy - r.top - r.height / 2, -40, 40);
-  knob.style.transform = `translate(${x}px, ${y}px)`;
-  pan.x = x / 40; pan.z = y / 40;
+  const x = clamp(cx - r.left - r.width / 2, -36, 36);
+  const y = clamp(cy - r.top - r.height / 2, -36, 36);
+  if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
+  pan.x = x / 36; pan.z = y / 36;
 };
-const end = () => { pan.x = 0; pan.z = 0; knob.style.transform = 'translate(0,0)'; };
-pad.addEventListener('touchstart', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
-pad.addEventListener('touchmove', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
-pad.addEventListener('touchend', end);
-pad.addEventListener('pointerdown', e => { e.preventDefault(); pad.setPointerCapture(e.pointerId); set(e.clientX, e.clientY); });
-pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e.clientX, e.clientY); });
-pad.addEventListener('pointerup', end);
-document.getElementById('camHome').onclick = () => { look.set(0, 0.4, 0); aim(); };
+const end = () => { pan.x = 0; pan.z = 0; if (knob) knob.style.transform = 'translate(0,0)'; };
+if (pad) {
+  pad.style.touchAction = 'none';
+  pad.addEventListener('touchstart', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
+  pad.addEventListener('touchmove', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
+  pad.addEventListener('touchend', end);
+  pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); set(e.clientX, e.clientY); });
+  pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e.clientX, e.clientY); });
+  pad.addEventListener('pointerup', end);
+}
+const center = document.getElementById('mobileCenter');
+if (center) center.onclick = () => { look.set(0, 0.8, 0); aim(); };
 
 const cell = new Map();
 const key = (x, z, y) => `${x}|${z}|${y}`;
@@ -195,8 +192,8 @@ class Net {
 
 function makeBody(hue) {
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.7, 0.62), emissive: new THREE.Color().setHSL(hue, 0.6, 0.18) });
-  const limb = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.3, 0.35) });
+  const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.75, 0.62) });
+  const limb = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.4, 0.78) });
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.42, 4, 8), mat);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat);
   head.position.y = 0.48;
@@ -213,12 +210,17 @@ function makeBody(hue) {
   return { g, legs, arms, mat };
 }
 
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffd56a }));
+beacon.position.set(0, 1.4, 0);
+scene.add(beacon);
 const agents = [];
 for (let i = 0; i < N; i++) {
   const body = makeBody(i / N);
   const ang = (i / N) * Math.PI * 2;
   body.g.position.set(Math.cos(ang) * 3.2, 0.7, Math.sin(ang) * 3.2);
-  body.g.scale.setScalar(1.7);
+  body.g.scale.setScalar(2.2);
+  const pin = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe08a }));
+  pin.position.y = 1.1; body.g.add(pin);
   scene.add(body.g);
   agents.push({ ...body, net: new Net(8), heading: rand(0, 6), vy: 0, signal: [0, 0, 0, 0], cool: 0, phase: rand(0, 6), air: 0 });
 }
