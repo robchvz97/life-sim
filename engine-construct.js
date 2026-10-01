@@ -42,7 +42,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.7.1</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.7.2</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -67,14 +67,15 @@ document.getElementById('hideHud').onclick = () => {
   const hidden = hud.classList.toggle('hidden');
   document.getElementById('hideHud').textContent = hidden ? '+' : '–';
 };
+if (innerWidth < 800) { hud.classList.add('hidden'); document.getElementById('hideHud').textContent = '+'; }
 
 const app = document.getElementById('app');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101820);
 scene.fog = new THREE.FogExp2(0x101820, 0.02);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 180);
-const look = new THREE.Vector3(0, 0.4, 0);
-let theta = 0.8, phi = 1.02, radius = 24, dragging = false, lx = 0, ly = 0;
+const look = new THREE.Vector3(0, 1.2, 0);
+let theta = 0.55, phi = 1.15, radius = 16, dragging = false, lx = 0, ly = 0;
 const pan = { x: 0, z: 0 };
 function aim() {
   const s = Math.sin(phi);
@@ -194,7 +195,7 @@ class Net {
 
 function makeBody(hue) {
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.45, 0.55) });
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.7, 0.62), emissive: new THREE.Color().setHSL(hue, 0.6, 0.18) });
   const limb = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.3, 0.35) });
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.42, 4, 8), mat);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat);
@@ -215,7 +216,9 @@ function makeBody(hue) {
 const agents = [];
 for (let i = 0; i < N; i++) {
   const body = makeBody(i / N);
-  body.g.position.set(rand(-6, 6), 0.7, rand(-6, 6));
+  const ang = (i / N) * Math.PI * 2;
+  body.g.position.set(Math.cos(ang) * 3.2, 0.7, Math.sin(ang) * 3.2);
+  body.g.scale.setScalar(1.7);
   scene.add(body.g);
   agents.push({ ...body, net: new Net(8), heading: rand(0, 6), vy: 0, signal: [0, 0, 0, 0], cool: 0, phase: rand(0, 6), air: 0 });
 }
