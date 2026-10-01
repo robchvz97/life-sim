@@ -1,7 +1,8 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
 
 const WORLD = 26, N = 12, MAX_BLOCKS = 700;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const num = v => Number.isFinite(v) ? v : 0;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, num(v)));
 const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
 const tanh = Math.tanh;
 const TYPES = [
@@ -16,8 +17,9 @@ for (const id of ['hud', 'discoveries', 'notice', 'selected', 'extinction', 'mob
   if (el) el.style.display = 'none';
 }
 const nav = document.getElementById('mobileNav');
-if (nav) nav.style.display = 'none';
+if (nav) nav.style.setProperty('display', 'none', 'important');
 document.title = 'Life Sim — redes abiertas';
+const boot = document.getElementById('bootVer'); if (boot) boot.style.display = 'none';
 
 const panel = document.createElement('div');
 panel.innerHTML = `
@@ -40,7 +42,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.7.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.7.1</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -178,7 +180,7 @@ class Net {
       e += diff * diff;
       for (let j = 0; j < this.nH; j++) this.pred[i][j] = clamp(this.pred[i][j] + 0.05 * diff * this._h[j], -2, 2);
     }
-    this.err = this.err * 0.97 + e / target.length;
+    this.err = clamp(this.err * 0.97 + (target.length ? e / target.length : 0), 0, 4);
     if (this.err > 0.4 && this.nH < 20 && Math.random() < 0.008) this.grow();
   }
   grow() {
@@ -277,7 +279,7 @@ function alignment() {
   }
   return n ? s / n : 0;
 }
-const SAVE = 'lifesim-open-v196';
+const SAVE = 'lifesim-open-v1971';
 function pack() {
   return {
     t: Date.now(), held, maxH,
@@ -359,8 +361,8 @@ function frame(now) {
   sample += sim;
   if (sample > 1) {
     sample = 0;
-    const err = agents.reduce((s, a) => s + a.net.err, 0) / agents.length;
-    const neurons = agents.reduce((s, a) => s + a.net.nH, 0) / agents.length;
+    const err = num(agents.reduce((s, a) => s + num(a.net.err), 0) / (agents.length || 1));
+    const neurons = num(agents.reduce((s, a) => s + num(a.net.nH), 0) / (agents.length || 1));
     const air = agents.filter(a => a.air).length;
     if (!startErr) startErr = err || 0.8;
     history.push(err); if (history.length > 70) history.shift();
@@ -369,7 +371,7 @@ function frame(now) {
     document.getElementById('mNeurons').textContent = neurons.toFixed(1);
     document.getElementById('mBlocks').textContent = held;
     document.getElementById('mSignals').textContent = signalBins();
-    document.getElementById('mAlign').textContent = `${Math.round(alignment() * 100)}%`;
+    document.getElementById('mAlign').textContent = `${Math.round(num(alignment()) * 100)}%`;
     document.getElementById('mAir').textContent = air;
     document.getElementById('mHeight').textContent = maxH;
     const c = document.getElementById('skillChart'), g = c.getContext('2d');
