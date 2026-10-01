@@ -1,388 +1,304 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Life Sim — Redes abiertas</title>
-  <style>
-    :root{
-      --bg:#0a0f14; --panel:#111923; --text:#e8f0f7; --muted:#91a0b1;
-      --accent:#7de38f; --danger:#ff7b7b; --line:#263444;
-    }
-    *{box-sizing:border-box}
-    html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
-      font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    #app{position:fixed;inset:0}
-    #hud{
-      position:fixed;left:14px;top:14px;width:min(430px,calc(100vw - 28px));
-      background:rgba(17,25,35,.91);backdrop-filter:blur(10px);
-      border:1px solid var(--line);border-radius:14px;padding:14px;z-index:10;
-      box-shadow:0 10px 30px rgba(0,0,0,.28);max-height:calc(100vh - 28px);overflow:auto
-    }
-    h1{font-size:16px;margin:0 0 7px;font-weight:760}
-    .sub{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-bottom:12px}
-    .sectionTitle{
-      margin:11px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;
-      color:#7f93a7;font-weight:800
-    }
-    .essentialGrid{margin-bottom:8px}
-    #advancedToggle{
-      width:100%;display:flex;align-items:center;justify-content:space-between;
-      margin:7px 0 10px;background:#121f2b;color:#cdd9e5;border-color:#2a3d50
-    }
-    #advancedToggle .chev{font-size:13px;transition:transform .16s ease}
-    #advancedToggle.open .chev{transform:rotate(180deg)}
-    #advancedStats{
-      display:none;padding-top:2px;border-top:1px solid rgba(80,105,128,.25);
-      margin-top:2px
-    }
-    #advancedStats.open{display:block}
-    #advancedStats .grid{margin-top:7px}
-    .advancedNote{
-      font-size:10px;color:var(--muted);line-height:1.45;margin:2px 0 8px
-    }
-    .stat{font-size:11px;color:var(--muted)}
-    .stat b{display:block;color:var(--text);font-size:14px;margin-top:2px}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    button,input[type="range"]{font:inherit}
-    button{
-      background:#172434;color:var(--text);border:1px solid #30465d;border-radius:10px;
-      padding:8px 10px;cursor:pointer;font-size:12px
-    }
-    button:hover{border-color:#4d6c89}
-    button.primary{background:#17351f;border-color:#2c6c3a;color:#dfffe6}
-    button.danger{background:#3a1f24;border-color:#78404c}
-    button.soundOn{background:#302a13;border-color:#7c6c27;color:#fff4b6}
-    .controls{display:grid;gap:9px}
-    .range{display:grid;grid-template-columns:102px 1fr 46px;align-items:center;gap:8px}
-    .range label{font-size:11px;color:var(--muted)}
-    .range output{text-align:right;font-size:11px;color:var(--text)}
-    input[type="range"]{width:100%}
-    .legend{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:10px;color:var(--muted);line-height:1.5}
-    .hudHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
-    .hudHeader h1{margin:0}
-    #hudToggle{padding:5px 9px;min-width:34px;font-size:16px;line-height:1}
-    #hud.collapsed{
-      width:50px;height:46px;padding:6px;overflow:hidden;border-radius:13px;
-      max-height:46px
-    }
-    #hud.collapsed .hudHeader{margin:0;height:34px;justify-content:center}
-    #hud.collapsed .hudHeader h1{display:none}
-    #hud.collapsed > :not(.hudHeader){display:none}
-    #hud.collapsed #hudToggle{width:38px;height:34px;padding:0}
-    #selected{
-      position:fixed;right:14px;top:14px;width:365px;max-width:calc(100vw - 28px);
-      background:rgba(17,25,35,.93);border:1px solid var(--line);border-radius:14px;
-      padding:12px;z-index:10;display:none;max-height:calc(100vh - 28px);overflow:auto
-    }
-    .selectedHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-    #selected .name{font-weight:760;font-size:13px}
-    #selectedClose{padding:4px 8px;font-size:15px;line-height:1}
-    #selected .mini{font-size:11px;color:var(--muted);line-height:1.5;white-space:pre-line}
-    #notice{
-      position:fixed;right:14px;bottom:14px;max-width:520px;
-      background:rgba(17,25,35,.91);border:1px solid var(--line);border-radius:12px;
-      padding:10px 12px;font-size:11px;color:var(--muted);z-index:10;line-height:1.45
-    }
-    #discoveries{
-      position:fixed;right:14px;bottom:92px;width:360px;max-width:calc(100vw - 28px);
-      max-height:330px;overflow:hidden;background:rgba(17,25,35,.94);border:1px solid var(--line);
-      border-radius:14px;z-index:12;box-shadow:0 10px 30px rgba(0,0,0,.28);backdrop-filter:blur(10px)
-    }
-    #discoveries .discHead{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid var(--line)}
-    #discoveries .discHead b{font-size:12px}
-    #discToggle{padding:3px 8px}
-    #discoveryList{max-height:275px;overflow:auto;padding:7px 9px}
-    .discEvent{padding:7px 5px;border-bottom:1px solid rgba(80,105,128,.22);font-size:10px;line-height:1.4}
-    .discEvent:last-child{border-bottom:0}
-    .discEvent .discTime{color:var(--accent);font-weight:700;margin-right:6px}
-    .discEvent .discTitle{color:var(--text);font-weight:700}
-    .discEvent .discDetail{color:var(--muted);margin-top:2px}
-    #discoveries.collapsed{width:auto;max-height:42px}
-    #discoveries.collapsed #discoveryList{display:none}
-    #extinction{
-      position:fixed;inset:0;display:none;place-items:center;z-index:40;
-      background:rgba(4,8,12,.72);backdrop-filter:blur(5px)
-    }
-    #extinction .card{
-      width:min(520px,calc(100vw - 32px));background:#111923;border:1px solid #5b2f38;
-      border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center
-    }
-    #extinction h2{margin:0 0 8px;font-size:24px}
-    #extinction p{color:var(--muted);font-size:13px;line-height:1.5}
-    #extinctionStats{font-size:12px;color:#dce7ef;line-height:1.7;margin:12px 0}
-    canvas{display:block}
-    #mobileNav{
-      display:none;position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));
-      z-index:24;align-items:flex-end;gap:9px;pointer-events:none;user-select:none;-webkit-user-select:none
-    }
-    #movePad{
-      width:112px;height:112px;border-radius:50%;position:relative;pointer-events:auto;touch-action:none;
-      border:1px solid rgba(180,205,225,.28);background:rgba(11,20,29,.46);backdrop-filter:blur(8px);
-      box-shadow:0 8px 24px rgba(0,0,0,.22)
-    }
-    #movePad::before,#movePad::after{content:"";position:absolute;background:rgba(190,215,232,.12)}
-    #movePad::before{width:1px;height:76%;left:50%;top:12%}
-    #movePad::after{height:1px;width:76%;top:50%;left:12%}
-    #moveKnob{
-      position:absolute;width:44px;height:44px;border-radius:50%;left:34px;top:34px;
-      background:rgba(199,226,244,.26);border:1px solid rgba(220,240,255,.46);
-      box-shadow:0 4px 14px rgba(0,0,0,.28);transform:translate(0,0)
-    }
-    #mobileCenter{
-      pointer-events:auto;touch-action:manipulation;width:46px;height:46px;border-radius:50%;padding:0;
-      background:rgba(17,30,42,.82);backdrop-filter:blur(8px);font-size:19px
-    }
-    #mobileGestureHint{
-      position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);
-      display:none;z-index:22;padding:6px 9px;border-radius:10px;background:rgba(11,20,29,.55);
-      color:#a9b8c6;font-size:9px;pointer-events:none;backdrop-filter:blur(6px)
-    }
-    @media(max-width:850px){
-      #hud{left:8px;top:8px;width:min(365px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
-      #hud.collapsed{width:50px;height:46px}
-      #selected{
-        top:auto;bottom:8px;left:8px;right:8px;
-        width:auto;max-width:none;max-height:48vh
-      }
-      #notice{display:none}
-      #discoveries{right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));max-height:250px}
-      #discoveryList{max-height:195px}
-    }
-    @media (pointer:coarse) and (max-width:900px){
-      #mobileNav{display:flex}
-      #mobileGestureHint{display:block}
-      canvas{touch-action:none}
-      #discoveries.collapsed{max-width:54px}
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta http-equiv="Cache-Control" content="no-cache" />
+<title>Life Sim v20</title>
+<style>
+  html,body{margin:0;height:100%;background:#101820;overflow:hidden;font:14px/1.4 system-ui,sans-serif}
+  #hud{position:fixed;left:12px;top:12px;z-index:20;width:min(380px,calc(100vw - 24px));
+    background:rgba(12,18,26,.92);color:#e8f0f7;border:1px solid #2a3c4e;border-radius:16px;padding:12px}
+  #hud.hidden{width:auto;padding:8px}
+  #hud.hidden .body{display:none}
+  #top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  #ver{color:#f0d78a;font-weight:800}
+  button{font:inherit;color:#e8f0f7;background:#172434;border:1px solid #30465d;border-radius:10px;padding:8px 10px}
+  #hide{width:36px;height:36px;padding:0;background:#1d4e78}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{color:#93a4b5;font-size:11px}
+  .stat b{display:block;color:#e8f0f7;font-size:16px}
+  #log{margin-top:8px;color:#b7c6d4;font-size:12px}
+  #pad{position:fixed;left:16px;bottom:28px;width:112px;height:112px;border-radius:50%;z-index:20;
+    background:rgba(16,28,40,.75);border:1px solid rgba(190,215,232,.35);touch-action:none}
+  #knob{position:absolute;left:34px;top:34px;width:44px;height:44px;border-radius:50%;background:rgba(199,226,244,.35)}
+  #home{position:fixed;left:140px;bottom:58px;z-index:20;width:46px;height:46px;border-radius:50%;padding:0}
+</style>
 </head>
-<body>\n<div id="bootVer" style="position:fixed;top:8px;right:8px;z-index:80;display:flex;gap:8px;align-items:center"><span style="background:#1d4e78;color:#f0d78a;font:800 13px/1 sans-serif;padding:8px 10px;border-radius:10px">v19.8.2</span><button onclick="location.replace('https://robchvz97.github.io/life-sim/?v='+Date.now())" style="background:#17351f;color:#dfffe6;border:1px solid #2c6c3a;border-radius:10px;padding:8px 10px;font:700 13px sans-serif">Actualizar</button></div>
-<div id="app"></div>
-<div id="mobileNav" aria-label="Navegación móvil">
-  <div id="movePad" aria-label="Mover cámara"><div id="moveKnob"></div></div>
-  <button id="mobileCenter" title="Centrar vista">⌖</button>
-</div>
-<div id="mobileGestureHint">1 dedo rota · 2 dedos desplazan/pellizcan · joystick mueve</div>
-
+<body>
 <div id="hud">
-  <div class="hudHeader">
-    <h1>Life Sim — Redes abiertas</h1>
-    <button id="hudToggle" title="Minimizar panel">−</button>
-  </div>
-  <div class="sub">
-    Auditoría del mundo: historial de métricas, respaldo descargable y pruebas sobre copias sin gráficos.
-  </div>
-
-  <div class="sectionTitle">Salud del mundo</div>
-  <div class="grid essentialGrid">
-    <div class="stat">Población<b id="pop">0</b></div>
-    <div class="stat">Individuos fértiles<b id="fertileCount">0</b></div>
-    <div class="stat">Balance poblacional<b id="popBalance">0</b></div>
-    <div class="stat">Riesgo demográfico<b id="demographicRisk">estable</b></div>
-  </div>
-  <div class="sectionTitle">Evolución y cultura</div>
-  <div class="grid essentialGrid">
-    <div class="stat">Generación máx.<b id="gen">0</b></div>
-    <div class="stat">Mayor asentamiento<b id="settlementSize">0</b></div>
-    <div class="stat">Comprensión comunicativa<b id="languageScore">0</b></div>
-    <div class="stat">Procedimientos tecnológicos<b id="techProcedures">0</b></div>
-  </div>
-  <div class="sectionTitle">Redes abiertas</div>
-  <div class="grid essentialGrid">
-    <div class="stat">Grupos sociales<b id="socialGroups">0</b></div>
-    <div class="stat">Relaciones recíprocas<b id="reciprocalLinks">0</b></div>
-    <div class="stat">Intercambio regional<b id="regionalTrade">0</b></div>
-  </div>
-  <button id="advancedToggle" aria-expanded="false"><span>Diagnóstico avanzado</span><span class="chev">⌄</span></button>
-  <div id="advancedStats">
-    <div class="advancedNote">Contadores técnicos y de depuración. Ábrelo cuando una métrica esencial se vea extraña o quieras investigar un sistema concreto.</div>
+  <div id="top"><span id="ver">v20.0.0</span><button id="hide">–</button></div>
+  <div class="body">
+    <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — desde cero</h1>
+    <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Terreno y cuerpos. La red mueve, abre la boca y emite una señal. No hay idioma ni grupos escritos.</p>
     <div class="grid">
-    <div class="stat">Nacimientos naturales<b id="births">0</b></div>
-    <div class="stat">Muertes<b id="deaths">0</b></div>
-    <div class="stat">Edad del mundo<b id="age">0.0</b></div>
-    <div class="stat">Materiales<b id="materials">0</b></div>
-    <div class="stat">Estructuras<b id="structures">0</b></div>
-    <div class="stat">Artefactos compuestos<b id="artifacts">0</b></div>
-    <div class="stat">Complejidad material<b id="technologyIndex">0</b></div>
-    <div class="stat">Combustiones activas<b id="activeCombustions">0</b></div>
-    <div class="stat">Transformaciones térmicas<b id="thermalTransforms">0</b></div>
-    <div class="stat">Marcas persistentes<b id="worldMarks">0</b></div>
-    <div class="stat">Símbolos externos compartidos<b id="sharedMarks">0</b></div>
-    <div class="stat">Técnicas motoras culturales<b id="motorTechniques">0</b></div>
-    <div class="stat">Imitación motora<b id="motorImitations">0</b></div>
-    <div class="stat">Apareamientos acumulados<b id="activePairs">0</b></div>
-    <div class="stat">Transferencias recientes<b id="recentTransfers">0</b></div>
-    <div class="stat">Reciprocidad promedio<b id="reciprocityScore">0</b></div>
-    <div class="stat">Estación<b id="seasonLabel">—</b></div>
-    <div class="stat">Objetos con capacidad<b id="containers">0</b></div>
-    <div class="stat">Potencial mecánico<b id="mechanisms">0</b></div>
-    <div class="stat">Moldeados físicos<b id="shapingEvents">0</b></div>
-    <div class="stat">Procedimientos culturales<b id="procedures">0</b></div>
-    <div class="stat">Procedimientos copiados<b id="procedureCopies">0</b></div>
-    <div class="stat">Objetos con agua<b id="waterContainers">0</b></div>
-    <div class="stat">Centros sociales recordados<b id="socialHubs">0</b></div>
-    <div class="stat">Contactos recipiente-agua<b id="waterContacts">0</b></div>
-    <div class="stat">Máx. agua en un objeto<b id="maxWaterFill">0</b></div>
-    <div class="stat">Lluvia actual<b id="rainState">seca</b></div>
-    <div class="stat">Ciclo diario<b id="dayState">—</b></div>
-    <div class="stat">Luz ambiental<b id="daylightLevel">0</b></div>
-    <div class="stat">Visión del observador<b id="observerVisionState">OFF</b></div>
-    <div class="stat">Humedad del suelo<b id="soilMoisture">0</b></div>
-    <div class="stat">Suelo sobresaturado<b id="saturatedSoil">0%</b></div>
-    <div class="stat">Cobertura vegetal<b id="vegetationCover">0</b></div>
-    <div class="stat">Agua superficial<b id="surfaceWaterMetric">0</b></div>
-    <div class="stat">Suelo compactado<b id="compactedSoil">0</b></div>
-    <div class="stat">Altura máxima<b id="maxTerrainHeight">0</b></div>
-    <div class="stat">Pendiente media<b id="avgTerrainSlope">0</b></div>
-    <div class="stat">Captaciones de lluvia<b id="rainCaptures">0</b></div>
-    <div class="stat">Símbolos compartidos<b id="sharedTokens">0</b></div>
-    <div class="stat">Dialectos detectados<b id="dialects">0</b></div>
-    <div class="stat">Memorias espaciales<b id="memories">0</b></div>
-    <div class="stat">Celdas exploradas<b id="cells">0</b></div>
-    <div class="stat">Vínculos positivos<b id="positiveBonds">0</b></div>
-    <div class="stat">Rivalidades<b id="rivalries">0</b></div>
-    <div class="stat">Futuros simulados<b id="mentalSims">0</b></div>
-    <div class="stat">Secuencias aprendidas<b id="sequences">0</b></div>
-    <div class="stat">Imitaciones<b id="imitations">0</b></div>
-    <div class="stat">Neuronas promedio<b id="avgNeurons">0</b></div>
-    <div class="stat">Conexiones activas prom.<b id="avgConnections">0</b></div>
-    <div class="stat">Topologías distintas<b id="topologyDiversity">0</b></div>
-    <div class="stat">Error predictivo prom.<b id="predictionError">0</b></div>
-    <div class="stat">Desarrollo promedio<b id="avgDevelopment">0</b></div>
-    <div class="stat">Origen actual<b id="originCount">1</b></div>
-    <div class="stat">Estado del linaje<b id="lineageState">vivo</b></div>
-    <div class="stat">Músculo promedio<b id="avgMuscle">0</b></div>
-    <div class="stat">Grasa promedio<b id="avgFat">0</b></div>
-    <div class="stat">Tamaño corporal prom.<b id="avgBody">0</b></div>
-    <div class="stat">Patrones de piel<b id="skinPatterns">0</b></div>
-    <div class="stat">Curvatura prom.<b id="avgCurve">0</b></div>
-    <div class="stat">Postura axial prom.<b id="avgAxialPosture">0</b></div>
-    <div class="stat">Diferenciación de extremidades<b id="avgLimbDifferentiation">0</b></div>
-    <div class="stat">Especialización manipuladora<b id="avgManipulatorSpecialization">0</b></div>
-    <div class="stat">Especialización de soporte<b id="avgSupportSpecialization">0</b></div>
-    <div class="stat">Señales táctiles<b id="touchCount">0</b></div>
-    <div class="stat">Dolor promedio<b id="avgPain">0</b></div>
-    <div class="stat">Reflejos<b id="reflexCount">0</b></div>
-    <div class="stat">Nac. naturales últimos 100<b id="recentBirths">0</b></div>
-    <div class="stat">Muertes últimos 100<b id="recentDeaths">0</b></div>
-    <div class="stat">Edad promedio<b id="avgAge">0</b></div>
-    <div class="stat">Embriones dormantes<b id="embryoCount">0</b></div>
-    <div class="stat">Archivo evolutivo<b id="archiveCount">0</b></div>
-    <div class="stat">Recolonizaciones<b id="recolonizations">0</b></div>
-    <div class="stat">Rescate demográfico<b id="rescueState">inactivo</b></div>
-    <div class="stat">Individuos de rescate<b id="rescueInsertions">0</b></div>
-    <div class="stat">Rescates últimos 100<b id="recentRescues">0</b></div>
-    <div class="stat">Persistencia<b id="persistState">iniciando…</b></div>
-    <div class="stat">Último guardado<b id="lastSave">—</b></div>
-    <div class="stat">Tiempo recuperado<b id="offlineAdvance">0</b></div>
-    <div class="stat">Eficiencia motora<b id="motorEfficiency">0</b></div>
-    <div class="stat">Saltos acumulados<b id="jumpCount">0</b></div>
-    <div class="stat">Física<b id="physicsState">cargando…</b></div>
-    <div class="stat">Cuerpos rígidos<b id="rigidBodyCount">0</b></div>
-    <div class="stat">Apoyos físicos<b id="physicalContacts">0</b></div>
-    <div class="stat">Recuperaciones del terreno<b id="terrainRecoveries">0</b></div>
-    <div class="stat">Motor cargado<b id="engineVersion">esperando…</b></div>
-    <div class="stat">Render 3D<b id="renderStatus">esperando…</b></div>
+      <div class="stat">Error predictivo<b id="mErr">—</b></div>
+      <div class="stat">Neuronas<b id="mN">0</b></div>
+      <div class="stat">Señales distintas<b id="mSig">0</b></div>
+      <div class="stat">Señales parecidas<b id="mAlign">0%</b></div>
+      <div class="stat">Cercanía<b id="mNear">0%</b></div>
+      <div class="stat">Bloques puestos<b id="mBlocks">0</b></div>
     </div>
-  </div>
-
-  <div class="controls">
-    <div class="row">
-      <button id="pause" class="primary">Pausar</button>
-      <button id="sound">Activar sonido</button>
-      <button id="anatomy">Mostrar anatomía</button>
-      <button id="observerVision">👁 Visión del observador: OFF</button>
-      <button id="testSound">Probar sonido</button>
-      <button id="spawn">+ criatura</button>
-      <button id="foodBtn">+ alimento</button>
-      <button id="matBtn">+ materiales</button>
-      <button id="saveNow">Guardar ahora</button>
-      <button id="reset" class="danger">Reiniciar mundo</button>
-      <button id="newOrigin" class="primary" style="display:none">Crear nuevo origen de vida</button>
+    <div style="margin-top:10px">
+      <button id="pause">Pausar</button>
+      <button id="speed">1×</button>
+      <button id="reload">Actualizar</button>
     </div>
-
-    <div class="range">
-      <label for="speed">Velocidad</label>
-      <input id="speed" type="range" min="0.25" max="100" value="1" step="0.25">
-      <output id="speedOut">1×</output>
-    </div>
-
-    <div class="range">
-      <label for="mutation">Mutación</label>
-      <input id="mutation" type="range" min="0.01" max="0.35" value="0.10" step="0.01">
-      <output id="mutationOut">10%</output>
-    </div>
-
-    <div class="range">
-      <label for="sun">Luz solar</label>
-      <input id="sun" type="range" min="0.2" max="1.8" value="1.0" step="0.05">
-      <output id="sunOut">1.00</output>
-    </div>
-
-    <div class="range">
-      <label for="volume">Volumen</label>
-      <input id="volume" type="range" min="0" max="0.5" value="0.18" step="0.01">
-      <output id="volumeOut">18%</output>
-    </div>
-  </div>
-
-  <div class="legend">
-    <b>Navegación:</b> escritorio: clic izquierdo rota, derecho desplaza, rueda zoom. Móvil: 1 dedo rota, 2 dedos desplazan y pellizcan para zoom; joystick mueve el mapa.
-    <br><br>
-    <b>Lectura rápida:</b> observa primero población y continuidad generacional; después comunicación, construcción, cultura y sociedad.
-    Abre <b>Diagnóstico avanzado</b> solo cuando necesitemos investigar un sistema específico.
+    <div id="log">8 cuerpos alrededor del centro. Dos dedos hacen zoom.</div>
   </div>
 </div>
-
-<div id="selected">
-  <div class="selectedHeader">
-    <div class="name" id="selName"></div>
-    <button id="selectedClose" title="Cerrar">×</button>
-  </div>
-  <div class="mini" id="selInfo"></div>
-</div>
-
-<div id="notice">
-  v18.2.0 elimina del panel los indicadores de supervivencia obsoletos. Cognitive World se centra en generaciones, cognición, construcción, comunicación y cultura.
-</div>
-
-<div id="discoveries">
-  <div class="discHead"><b>📜 Historia del mundo</b><button id="discToggle" title="Minimizar">−</button></div>
-  <div id="discoveryList"><div class="discEvent"><span class="discTitle">Esperando descubrimientos…</span><div class="discDetail">Los eventos importantes aparecerán aquí automáticamente.</div></div></div>
-</div>
-
-<div id="extinction">
-  <div class="card">
-    <h2>☠ EXTINCIÓN</h2>
-    <p>El linaje activo terminó y no quedan embriones viables. La extinción sigue siendo real, pero el archivo evolutivo puede conservar genomas exitosos para el siguiente origen.</p>
-    <div id="extinctionStats"></div>
-    <button id="extinctionOrigin" class="primary">Crear nuevo origen de vida</button>
-  </div>
-</div>
-
+<div id="pad"><div id="knob"></div></div>
+<button id="home">⌖</button>
 <script type="module">
-const engineEl=document.getElementById('engineVersion');
-const renderEl=document.getElementById('renderStatus');
-const advancedToggle=document.getElementById('advancedToggle');
-const advancedStats=document.getElementById('advancedStats');
-if(advancedToggle&&advancedStats){
-  advancedToggle.addEventListener('click',()=>{
-    const open=advancedStats.classList.toggle('open');
-    advancedToggle.classList.toggle('open',open);
-    advancedToggle.setAttribute('aria-expanded',String(open));
-    advancedToggle.querySelector('span:first-child').textContent=open?'Ocultar diagnóstico avanzado':'Diagnóstico avanzado';
-  });
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const num = v => Number.isFinite(v) ? v : 0;
+const rand = (a=0,b=1)=>a+Math.random()*(b-a);
+const tanh = Math.tanh;
+const WORLD = 24, N = 8;
+const hud = document.getElementById('hud');
+document.getElementById('hide').onclick = () => {
+  const hidden = hud.classList.toggle('hidden');
+  document.getElementById('hide').textContent = hidden ? '+' : '–';
+};
+if (innerWidth < 800) { hud.classList.add('hidden'); document.getElementById('hide').textContent = '+'; }
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x101820);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 160);
+const look = new THREE.Vector3(0, 1, 0);
+let theta = 0.7, phi = 1.08, radius = 14, panX = 0, panZ = 0;
+function aim(){
+  const s = Math.sin(phi);
+  camera.position.set(look.x + radius*s*Math.sin(theta), look.y + radius*Math.cos(phi), look.z + radius*s*Math.cos(theta));
+  camera.lookAt(look);
 }
-if(engineEl) engineEl.textContent='cargando constructores…';
-try{
-  await import('./simulation.js?v=19.8.2&t=' + Date.now());
-}catch(err){
-  console.error('Life Sim no pudo iniciar:',err);
-  if(engineEl) engineEl.textContent='ERROR AL CARGAR';
-  if(renderEl) renderEl.textContent=(err?.message||String(err)).slice(0,80);
+aim();
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+const sun = new THREE.DirectionalLight(0xfff2dd, 0.7);
+sun.position.set(8, 16, 6);
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD*2, WORLD*2), new THREE.MeshStandardMaterial({color:0x24362f}));
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+scene.add(new THREE.GridHelper(WORLD*2, 24, 0x4d6b5c, 0x31483f));
+const mark = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshBasicMaterial({color:0xf0d78a}));
+mark.position.y = 0.3;
+scene.add(mark);
+
+let dragging = false, lx = 0, ly = 0, pinch = 0;
+renderer.domElement.addEventListener('pointerdown', e => { if (e.target.closest('#hud,#pad,#home')) return; dragging = true; lx = e.clientX; ly = e.clientY; });
+window.addEventListener('pointerup', () => dragging = false);
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  theta -= (e.clientX-lx)*0.005;
+  phi = clamp(phi + (e.clientY-ly)*0.004, 0.4, 1.35);
+  lx = e.clientX; ly = e.clientY; aim();
+});
+renderer.domElement.addEventListener('touchmove', e => {
+  if (e.touches.length !== 2) return;
+  e.preventDefault();
+  const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  if (pinch) radius = clamp(radius * (pinch/d), 5, 32);
+  pinch = d; aim();
+}, {passive:false});
+renderer.domElement.addEventListener('touchend', () => pinch = 0);
+
+const pad = document.getElementById('pad'), knob = document.getElementById('knob');
+const setPad = (cx, cy) => {
+  const r = pad.getBoundingClientRect();
+  const x = clamp(cx - r.left - r.width/2, -34, 34);
+  const y = clamp(cy - r.top - r.height/2, -34, 34);
+  knob.style.transform = `translate(${x}px, ${y}px)`;
+  panX = x/34; panZ = y/34;
+};
+const endPad = () => { panX = 0; panZ = 0; knob.style.transform = 'translate(0,0)'; };
+pad.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; setPad(t.clientX, t.clientY); }, {passive:false});
+pad.addEventListener('touchmove', e => { e.preventDefault(); const t = e.changedTouches[0]; setPad(t.clientX, t.clientY); }, {passive:false});
+pad.addEventListener('touchend', endPad);
+pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); setPad(e.clientX, e.clientY); });
+pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) setPad(e.clientX, e.clientY); });
+pad.addEventListener('pointerup', endPad);
+document.getElementById('home').onclick = () => { look.set(0,1,0); aim(); };
+
+const blocks = [];
+const box = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+function place(x, z, color){
+  if (blocks.length > 200) return 0;
+  const mesh = new THREE.Mesh(box, new THREE.MeshBasicMaterial({color}));
+  const h = blocks.filter(b => b.x===x && b.z===z).length;
+  if (h > 4) return 0;
+  mesh.position.set(x, 0.4 + h*0.8, z);
+  scene.add(mesh);
+  blocks.push({x, z, mesh});
+  return 1;
 }
+
+class Net {
+  constructor(){
+    this.nIn = 14; this.nH = 8; this.nOut = 8;
+    this.w1 = Array.from({length:this.nH}, () => Array.from({length:this.nIn}, () => rand(-0.4,0.4)));
+    this.w2 = Array.from({length:this.nOut}, () => Array.from({length:this.nH}, () => rand(-0.4,0.4)));
+    this.e1 = this.w1.map(r => r.map(()=>0));
+    this.e2 = this.w2.map(r => r.map(()=>0));
+    this.pred = Array.from({length:4}, () => Array.from({length:this.nH}, () => rand(-0.2,0.2)));
+    this.err = 0.6;
+  }
+  step(x){
+    const h = this.w1.map(row => tanh(row.reduce((s,w,j)=>s+w*x[j],0)));
+    const o = this.w2.map(row => tanh(row.reduce((s,w,j)=>s+w*h[j],0)));
+    this._h = h;
+    this._g = this.pred.map(row => tanh(row.reduce((s,w,j)=>s+w*h[j],0)));
+    for (let i=0;i<this.nH;i++) for (let j=0;j<this.nIn;j++) this.e1[i][j] = 0.92*this.e1[i][j] + h[i]*x[j];
+    for (let i=0;i<this.nOut;i++) for (let j=0;j<this.nH;j++) this.e2[i][j] = 0.92*this.e2[i][j] + o[i]*h[j];
+    return o;
+  }
+  learn(reward, target){
+    const r = clamp(reward,-1,1);
+    for (let i=0;i<this.nOut;i++) for (let j=0;j<this.nH;j++) this.w2[i][j] = clamp(this.w2[i][j] + 0.03*r*this.e2[i][j], -2.5, 2.5);
+    for (let i=0;i<this.nH;i++) for (let j=0;j<this.nIn;j++) this.w1[i][j] = clamp(this.w1[i][j] + 0.02*r*this.e1[i][j], -2.5, 2.5);
+    let e = 0;
+    for (let i=0;i<target.length;i++){
+      const diff = target[i] - (this._g[i]||0);
+      e += diff*diff;
+      for (let j=0;j<this.nH;j++) this.pred[i][j] = clamp(this.pred[i][j] + 0.05*diff*this._h[j], -2, 2);
+    }
+    this.err = clamp(this.err*0.96 + e/target.length, 0, 3);
+    if (this.err > 0.45 && this.nH < 16 && Math.random() < 0.01) this.grow();
+  }
+  grow(){
+    this.w1.push(Array.from({length:this.nIn}, () => rand(-0.15,0.15)));
+    this.e1.push(Array(this.nIn).fill(0));
+    for (let i=0;i<this.nOut;i++){ this.w2[i].push(rand(-0.15,0.15)); this.e2[i].push(0); }
+    for (const row of this.pred) row.push(rand(-0.1,0.1));
+    this.nH++;
+  }
+}
+
+function creature(hue){
+  const g = new THREE.Group();
+  const skin = new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(hue, 0.65, 0.55)});
+  const dark = new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(hue, 0.4, 0.3)});
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x,y,z); g.add(m); return m; };
+  add(new THREE.BoxGeometry(0.7, 0.55, 0.4), skin, 0, 1.05, 0);
+  const neck = add(new THREE.BoxGeometry(0.18, 0.22, 0.18), skin, 0, 1.42, 0);
+  const head = add(new THREE.SphereGeometry(0.28, 14, 12), skin, 0, 1.78, 0);
+  add(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({color:0x111111}), -0.1, 1.84, 0.22);
+  add(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({color:0x111111}), 0.1, 1.84, 0.22);
+  const mouth = add(new THREE.BoxGeometry(0.16, 0.05, 0.04), new THREE.MeshBasicMaterial({color:0xf0d78a}), 0, 1.66, 0.26);
+  const armL = add(new THREE.BoxGeometry(0.12, 0.42, 0.12), dark, -0.46, 1.0, 0);
+  const armR = add(new THREE.BoxGeometry(0.12, 0.42, 0.12), dark, 0.46, 1.0, 0);
+  add(new THREE.SphereGeometry(0.09, 8, 8), dark, -0.46, 0.74, 0);
+  add(new THREE.SphereGeometry(0.09, 8, 8), dark, 0.46, 0.74, 0);
+  const legL = add(new THREE.BoxGeometry(0.14, 0.5, 0.14), dark, -0.18, 0.52, 0);
+  const legR = add(new THREE.BoxGeometry(0.14, 0.5, 0.14), dark, 0.18, 0.52, 0);
+  add(new THREE.BoxGeometry(0.18, 0.08, 0.26), dark, -0.18, 0.22, 0.04);
+  add(new THREE.BoxGeometry(0.18, 0.08, 0.26), dark, 0.18, 0.22, 0.04);
+  return { g, mouth, armL, armR, legL, legR, neck, head };
+}
+
+const agents = [];
+for (let i = 0; i < N; i++){
+  const hue = i / N;
+  const body = creature(hue);
+  const ang = (i/N)*Math.PI*2;
+  body.g.position.set(Math.cos(ang)*2.4, 0, Math.sin(ang)*2.4);
+  scene.add(body.g);
+  agents.push({ ...body, net:new Net(), heading:ang+Math.PI, signal:[0,0,0,0], phase:rand(0,6), cool:0, color:new THREE.Color().setHSL(hue,0.7,0.55).getHex() });
+}
+
+function sense(a){
+  let nx = 0, nz = 0, heard = [0,0,0,0], near = 0;
+  for (const b of agents) if (b !== a){
+    const d = a.g.position.distanceTo(b.g.position);
+    if (d < 7){ nx += (b.g.position.x-a.g.position.x)/7; nz += (b.g.position.z-a.g.position.z)/7; near++; for (let i=0;i<4;i++) heard[i]+=b.signal[i]/(1+d); }
+  }
+  return [a.g.position.x/WORLD, a.g.position.z/WORLD, Math.sin(a.heading), Math.cos(a.heading), near/N, nx, nz, ...heard, a.signal[0], a.signal[1], a.phase/6];
+}
+function act(a, dt){
+  const before = [a.g.position.x/WORLD, a.g.position.z/WORLD, a.signal[0], a.signal[1]];
+  const o = a.net.step(sense(a));
+  a.heading += o[0]*dt*1.4;
+  const stride = Math.max(0, o[1]);
+  a.g.position.x = clamp(a.g.position.x + Math.sin(a.heading)*(0.4+stride*1.3)*dt, -WORLD+1, WORLD-1);
+  a.g.position.z = clamp(a.g.position.z + Math.cos(a.heading)*(0.4+stride*1.3)*dt, -WORLD+1, WORLD-1);
+  a.g.rotation.y = a.heading;
+  a.phase += (0.4+stride)*dt*6;
+  const swing = Math.sin(a.phase)*stride;
+  a.legL.rotation.x = swing; a.legR.rotation.x = -swing;
+  a.armL.rotation.x = -swing*0.8; a.armR.rotation.x = swing*0.8;
+  a.mouth.scale.y = 1 + Math.max(0, o[2])*3;
+  a.signal = [o[4], o[5], o[6], o[7]].map(v => clamp(v,-1,1));
+  a.head.material = a.head.material; 
+  a.cool -= dt;
+  let placed = 0;
+  if (a.cool <= 0 && o[3] > 0.45){
+    placed = place(Math.round(a.g.position.x+Math.sin(a.heading)), Math.round(a.g.position.z+Math.cos(a.heading)), a.color);
+    a.cool = 0.8;
+  }
+  const after = [a.g.position.x/WORLD, a.g.position.z/WORLD, a.signal[0], a.signal[1]];
+  const changed = after.reduce((s,v,i)=>s+Math.abs(v-before[i]),0);
+  const surprise = after.reduce((s,v,i)=>s+Math.abs(v-(a.net._g[i]||0)),0);
+  a.net.learn(placed*0.25 + changed*0.35 - surprise*0.15, after);
+}
+function bins(){
+  const s = new Set();
+  for (const a of agents) s.add(a.signal.map(v => Math.round(v*2)).join(','));
+  return s.size;
+}
+function align(){
+  let s = 0, n = 0;
+  for (let i=0;i<agents.length;i++) for (let j=i+1;j<agents.length;j++){
+    if (agents[i].g.position.distanceTo(agents[j].g.position) > 5) continue;
+    let dot = 0;
+    for (let k=0;k<4;k++) dot += agents[i].signal[k]*agents[j].signal[k];
+    s += clamp(dot/4,0,1); n++;
+  }
+  return n ? s/n : 0;
+}
+function near(){
+  let c = 0, n = 0;
+  for (let i=0;i<agents.length;i++) for (let j=i+1;j<agents.length;j++){ n++; if (agents[i].g.position.distanceTo(agents[j].g.position) < 3) c++; }
+  return n ? c/n : 0;
+}
+let paused = false, speed = 1, acc = 0, last = performance.now(), sample = 0;
+document.getElementById('pause').onclick = e => { paused = !paused; e.target.textContent = paused ? 'Seguir' : 'Pausar'; };
+document.getElementById('speed').onclick = e => { speed = speed===1?3:1; e.target.textContent = speed+'×'; };
+document.getElementById('reload').onclick = () => location.replace('https://robchvz97.github.io/life-sim/?v='+Date.now());
+function frame(now){
+  const dt = Math.min(0.05, (now-last)/1000);
+  last = now;
+  if (Math.abs(panX)+Math.abs(panZ) > 0.05){
+    look.x = clamp(look.x + (panX*Math.cos(theta) + panZ*Math.sin(theta))*dt*12, -WORLD, WORLD);
+    look.z = clamp(look.z + (panX*-Math.sin(theta) + panZ*Math.cos(theta))*dt*12, -WORLD, WORLD);
+  } else if (agents.length){
+    look.x += (agents.reduce((s,a)=>s+a.g.position.x,0)/agents.length - look.x)*0.03;
+    look.z += (agents.reduce((s,a)=>s+a.g.position.z,0)/agents.length - look.z)*0.03;
+  }
+  aim();
+  acc += dt * (paused?0:speed);
+  while (acc > 0.05){ for (const a of agents) act(a, 0.05); acc -= 0.05; }
+  sample += dt;
+  if (sample > 1){
+    sample = 0;
+    const err = num(agents.reduce((s,a)=>s+num(a.net.err),0)/(agents.length||1));
+    const neurons = num(agents.reduce((s,a)=>s+a.net.nH,0)/(agents.length||1));
+    document.getElementById('mErr').textContent = err.toFixed(3);
+    document.getElementById('mN').textContent = neurons.toFixed(1);
+    document.getElementById('mSig').textContent = bins();
+    document.getElementById('mAlign').textContent = Math.round(num(align())*100)+'%';
+    document.getElementById('mNear').textContent = Math.round(near()*100)+'%';
+    document.getElementById('mBlocks').textContent = blocks.length;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>
 </body>
 </html>

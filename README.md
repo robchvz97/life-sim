@@ -1,7 +1,5 @@
-# Life Sim — Constructores (v19)
+# Life Sim
 
-Esta versión deja atrás la supervivencia. No hay hambre, enfermedad, sol como amenaza ni temperatura.
+Escena nueva, v20.0.0. Terreno y cuerpos con red neuronal. Sin reglas de idioma ni de grupo.
 
-Los agentes solo construyen. Su red neuronal crece si la obra mejora: cimiento, muro, vano y techo, hasta cerrar un volumen. Un alumno copia la red del constructor que cierra una obra, con una mutación pequeña.
-
-Abre https://robchvz97.github.io/life-sim/
+https://robchvz97.github.io/life-sim/
