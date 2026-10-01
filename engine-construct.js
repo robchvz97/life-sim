@@ -16,7 +16,7 @@ for (const id of ['hud', 'discoveries', 'notice', 'selected', 'extinction', 'mob
   if (el) el.style.display = 'none';
 }
 const nav = document.getElementById('mobileNav');
-if (nav) nav.style.display = 'flex';
+if (nav) nav.style.display = 'none';
 document.title = 'Life Sim — redes abiertas';
 
 const panel = document.createElement('div');
@@ -25,10 +25,12 @@ panel.innerHTML = `
     #buildHud{position:fixed;left:12px;top:12px;width:min(400px,calc(100vw - 24px));z-index:30;
       background:rgba(12,18,26,.92);color:#e8f0f7;border:1px solid #2a3c4e;border-radius:16px;
       padding:14px;font:13px/1.4 Inter,system-ui,sans-serif;backdrop-filter:blur(10px);max-height:calc(100vh - 24px);overflow:auto}
-    #buildHud.hidden{width:46px;height:46px;padding:0;overflow:hidden}
+    #buildHud.hidden{width:auto;height:auto;padding:8px}
     #buildHud.hidden .body{display:none}
-    #hideHud{position:absolute;right:8px;top:8px;width:30px;height:30px;border-radius:8px;border:1px solid #30465d;background:#172434;color:#e8f0f7}
-    #buildHud h1{font-size:16px;margin:0 28px 4px 0}
+    #hudTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    #verTag{font-size:12px;font-weight:800;letter-spacing:.04em;color:#f0d78a}
+    #hideHud{width:36px;height:36px;border-radius:10px;border:1px solid #8fb4d4;background:#1d4e78;color:#fff;font-size:20px;line-height:1}
+    #buildHud h1{font-size:16px;margin:0 0 4px}
     #buildHud .sub{color:#93a4b5;font-size:12px;margin-bottom:8px}
     #buildHud .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}
     #buildHud .stat{color:#93a4b5;font-size:11px}
@@ -38,7 +40,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <button id="hideHud" title="Ocultar métricas">–</button>
+    <div id="hudTop"><span id="verTag">v19.5.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -102,24 +104,31 @@ function rendererSetup() {
   });
   window.__lifeRenderer = renderer;
 }
-const pad = document.getElementById('movePad');
-const knob = document.getElementById('moveKnob');
-if (pad) {
-  const set = (cx, cy) => {
-    const r = pad.getBoundingClientRect();
-    const x = clamp(cx - r.left - r.width / 2, -42, 42);
-    const y = clamp(cy - r.top - r.height / 2, -42, 42);
-    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
-    pan.x = x / 42; pan.z = y / 42;
-  };
-  pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); set(e.clientX, e.clientY); });
-  pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e.clientX, e.clientY); });
-  const end = () => { pan.x = 0; pan.z = 0; if (knob) knob.style.transform = 'translate(0,0)'; };
-  pad.addEventListener('pointerup', end);
-  pad.addEventListener('pointercancel', end);
-}
-const center = document.getElementById('mobileCenter');
-if (center) center.onclick = () => { look.set(0, 0.4, 0); aim(); };
+const camPad = document.createElement('div');
+camPad.innerHTML = `<style>
+  #camPad{position:fixed;left:16px;bottom:24px;width:118px;height:118px;border-radius:50%;z-index:40;
+    background:rgba(16,28,40,.72);border:1px solid rgba(180,205,225,.35);touch-action:none}
+  #camKnob{position:absolute;left:37px;top:37px;width:44px;height:44px;border-radius:50%;background:rgba(199,226,244,.4);border:1px solid rgba(220,240,255,.5)}
+  #camHome{position:fixed;left:146px;bottom:58px;z-index:40;width:46px;height:46px;border-radius:50%;border:1px solid #30465d;background:rgba(17,30,42,.9);color:#e8f0f7;font-size:18px}
+</style><div id="camPad"><div id="camKnob"></div></div><button id="camHome">⌖</button>`;
+document.body.appendChild(camPad);
+const pad = document.getElementById('camPad');
+const knob = document.getElementById('camKnob');
+const set = (cx, cy) => {
+  const r = pad.getBoundingClientRect();
+  const x = clamp(cx - r.left - r.width / 2, -40, 40);
+  const y = clamp(cy - r.top - r.height / 2, -40, 40);
+  knob.style.transform = `translate(${x}px, ${y}px)`;
+  pan.x = x / 40; pan.z = y / 40;
+};
+const end = () => { pan.x = 0; pan.z = 0; knob.style.transform = 'translate(0,0)'; };
+pad.addEventListener('touchstart', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
+pad.addEventListener('touchmove', e => { e.preventDefault(); const tch = e.changedTouches[0]; set(tch.clientX, tch.clientY); }, {passive:false});
+pad.addEventListener('touchend', end);
+pad.addEventListener('pointerdown', e => { e.preventDefault(); pad.setPointerCapture(e.pointerId); set(e.clientX, e.clientY); });
+pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e.clientX, e.clientY); });
+pad.addEventListener('pointerup', end);
+document.getElementById('camHome').onclick = () => { look.set(0, 0.4, 0); aim(); };
 
 const cell = new Map();
 const key = (x, z, y) => `${x}|${z}|${y}`;
