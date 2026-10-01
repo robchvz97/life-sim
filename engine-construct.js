@@ -40,7 +40,7 @@ panel.innerHTML = `
     #buildLog{margin-top:8px;font-size:11px;color:#b7c6d4}
   </style>
   <div id="buildHud">
-    <div id="hudTop"><span id="verTag">v19.6.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
+    <div id="hudTop"><span id="verTag">v19.7.0</span><button id="hideHud" title="Ocultar métricas">–</button></div>
     <div class="body">
       <h1>Life Sim — redes abiertas</h1>
       <div class="sub">El cuerpo no tiene paso escrito. La red decide zancada y impulso. Si brincan o corren, lo encontraron solas.</div>
@@ -55,7 +55,7 @@ panel.innerHTML = `
         <div class="stat">En el aire<b id="mAir">0</b></div>
         <div class="stat">Altura máxima<b id="mHeight">0</b></div>
       </div>
-      <div style="margin-top:10px"><button class="ctrl" id="bPause">Pausar</button><button class="ctrl" id="bSpeed">Velocidad 1×</button></div>
+      <div style="margin-top:10px"><button class="ctrl" id="bPause">Pausar</button><button class="ctrl" id="bSpeed">Velocidad 1×</button><button class="ctrl" id="bRefresh">Actualizar</button></div>
       <div id="buildLog">El joystick de abajo mueve la cámara, no a las criaturas.</div>
     </div>
   </div>`;
@@ -341,6 +341,11 @@ let paused = false, speed = 1, acc = 0, last = performance.now(), sample = 0, st
 const history = [];
 document.getElementById('bPause').onclick = e => { paused = !paused; e.target.textContent = paused ? 'Seguir' : 'Pausar'; };
 document.getElementById('bSpeed').onclick = e => { speed = speed === 1 ? 3 : speed === 3 ? 8 : 1; e.target.textContent = `Velocidad ${speed}×`; };
+document.getElementById('bRefresh').onclick = async () => {
+  try { localStorage.setItem(SAVE, JSON.stringify(pack())); } catch (e) {}
+  if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+  location.replace('https://robchvz97.github.io/life-sim/?v=' + Date.now());
+};
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
