@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Life Sim v20.3.4</title>
+<title>Life Sim v20.3.5</title>
 <style>
   html,body{margin:0;height:100%;background:#101820;overflow:hidden;font:14px/1.4 system-ui,sans-serif}
   #hud{position:fixed;left:12px;top:12px;z-index:20;width:min(390px,calc(100vw - 24px));
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="top"><span id="ver">v20.3.4</span><button id="hide">–</button></div>
+  <div id="top"><span id="ver">v20.3.5</span><button id="hide">–</button></div>
   <div class="body">
     <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — cuerpos y física</h1>
     <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Articulaciones redondas, gravedad de la Tierra, aire, energía y memoria. Nada de idioma o grupos escritos.</p>
@@ -43,7 +43,7 @@
       <button id="speed">1×</button>
       <button id="reload">Actualizar</button>
     </div>
-    <div id="log">v20.3.4. La cámara se queda donde sueltas el joystick.</div>
+    <div id="log">v20.3.5. La cámara se queda donde sueltas el joystick.</div>
   </div>
 </div>
 <div id="pad"><div id="knob"></div></div>
@@ -196,19 +196,23 @@ function creature(hue){
   torso.scale.set(1.1, 1.25, 0.8);
   torso.position.y = 1.15;
   g.add(torso);
-  const neck = joint(g, new THREE.SphereGeometry(0.01, 6, 6), skin, 0, 1.48, 0);
+  const neck = new THREE.Group();
+  neck.position.set(0, 1.48, 0);
+  g.add(neck);
+  const neckBall = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), skin);
+  neck.add(neckBall);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), skin);
   head.position.y = 0.28;
-  neck.pivot.add(head);
+  neck.add(head);
   const eye = new THREE.MeshBasicMaterial({color:0x111111});
   for (const side of [-1, 1]) {
     const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), eye);
     e.position.set(side*0.09, 0.34, 0.2);
-    neck.pivot.add(e);
+    neck.add(e);
   }
   const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({color:0xf0d78a}));
   mouth.position.set(0, 0.16, 0.22);
-  neck.pivot.add(mouth);
+  neck.add(mouth);
   const armL = limb(g, dark, -0.55, 1.18, 0, 0.55, 0.12);
   const armR = limb(g, dark, 0.55, 1.18, 0, 0.55, 0.12);
   const handL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
@@ -221,7 +225,7 @@ function creature(hue){
   footL.scale.set(1.15, 0.55, 1.7); footL.position.y = -0.74; legL.add(footL);
   const footR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
   footR.scale.set(1.15, 0.55, 1.7); footR.position.y = -0.74; legR.add(footR);
-  return { g, neck: neck.pivot, mouth, armL, armR, legL, legR };
+  return { g, neck, mouth, armL, armR, legL, legR };
 }
 
 const agents = [];
@@ -329,6 +333,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+window.addEventListener('error', e => { const log = document.getElementById('log'); if (log) log.textContent = 'Error: ' + (e.message || e); });
 window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>
 </body>
