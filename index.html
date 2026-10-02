@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Life Sim v20.3.6</title>
+<title>Life Sim v20.3.7</title>
 <style>
   html,body{margin:0;height:100%;background:#101820;overflow:hidden;font:14px/1.4 system-ui,sans-serif}
   #hud{position:fixed;left:12px;top:12px;z-index:20;width:min(390px,calc(100vw - 24px));
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="top"><span id="ver">v20.3.6</span><button id="hide">–</button></div>
+  <div id="top"><span id="ver">v20.3.7</span><button id="hide">–</button></div>
   <div class="body">
     <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — cuerpos y física</h1>
     <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Articulaciones redondas, gravedad de la Tierra, aire, energía y memoria. Nada de idioma o grupos escritos.</p>
@@ -232,8 +232,7 @@ const agents = [];
 for (let i = 0; i < N; i++){
   const hue = i / N;
   const body = creature(hue);
-  const ang = (i/N)*Math.PI*2;
-  body.g.position.set(Math.cos(ang)*1.8, 0, Math.sin(ang)*1.8);
+  body.g.position.set(rand(-14, 14), 0, rand(-14, 14));
   body.g.scale.setScalar(1.8);
   scene.add(body.g);
   agents.push({ ...body, net:new Net(), heading:rand(0, 6.28), signal:[0,0,0,0], phase:rand(0,6), cool:0, vy:0, energy:80, memory:[0,0,0,0], air:0, color:new THREE.Color().setHSL(hue,0.7,0.55).getHex() });
@@ -256,6 +255,11 @@ function act(a, dt){
   const side = tired ? 0 : o[2] * 0.8;
   a.g.position.x = clamp(a.g.position.x + (Math.sin(a.heading)*forward + Math.cos(a.heading)*side)*dt, -WORLD+1, WORLD-1);
   a.g.position.z = clamp(a.g.position.z + (Math.cos(a.heading)*forward - Math.sin(a.heading)*side)*dt, -WORLD+1, WORLD-1);
+  for (const b of agents) if (b !== a) {
+    const dx = a.g.position.x - b.g.position.x, dz = a.g.position.z - b.g.position.z;
+    const d = Math.hypot(dx, dz) || 0.001;
+    if (d < 1.3) { a.g.position.x += dx/d*0.04; a.g.position.z += dz/d*0.04; }
+  }
   const speed = Math.abs(forward) + Math.abs(side);
   const stride = speed;
   if (!Number.isFinite(a.g.position.x)) a.g.position.set(0,0,0);
