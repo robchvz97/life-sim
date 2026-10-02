@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Life Sim v20.3.3</title>
+<title>Life Sim v20.3.4</title>
 <style>
   html,body{margin:0;height:100%;background:#101820;overflow:hidden;font:14px/1.4 system-ui,sans-serif}
   #hud{position:fixed;left:12px;top:12px;z-index:20;width:min(390px,calc(100vw - 24px));
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="top"><span id="ver">v20.3.3</span><button id="hide">–</button></div>
+  <div id="top"><span id="ver">v20.3.4</span><button id="hide">–</button></div>
   <div class="body">
     <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — cuerpos y física</h1>
     <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Articulaciones redondas, gravedad de la Tierra, aire, energía y memoria. Nada de idioma o grupos escritos.</p>
@@ -43,7 +43,7 @@
       <button id="speed">1×</button>
       <button id="reload">Actualizar</button>
     </div>
-    <div id="log">v20.3.3. La cámara se queda donde sueltas el joystick.</div>
+    <div id="log">v20.3.4. La cámara se queda donde sueltas el joystick.</div>
   </div>
 </div>
 <div id="pad"><div id="knob"></div></div>
@@ -177,12 +177,14 @@ class Net {
 function limb(parent, mat, x, y, z, len, thick){
   const pivot = new THREE.Group();
   pivot.position.set(x, y, z);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(thick * 0.7, 10, 8), mat);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(thick * 1.15, 12, 10), mat);
   pivot.add(ball);
-  const bone = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), mat);
-  bone.scale.set(thick, len, thick);
+  const bone = new THREE.Mesh(new THREE.BoxGeometry(thick * 2.2, len, thick * 2.2), mat);
   bone.position.y = -len * 0.55;
   pivot.add(bone);
+  const mid = new THREE.Mesh(new THREE.SphereGeometry(thick * 1.05, 12, 10), mat);
+  mid.position.y = -len;
+  pivot.add(mid);
   parent.add(pivot);
   return pivot;
 }
@@ -207,18 +209,18 @@ function creature(hue){
   const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({color:0xf0d78a}));
   mouth.position.set(0, 0.16, 0.22);
   neck.pivot.add(mouth);
-  const armL = limb(g, dark, -0.48, 1.22, 0, 0.42, 0.11);
-  const armR = limb(g, dark, 0.48, 1.22, 0, 0.42, 0.11);
+  const armL = limb(g, dark, -0.55, 1.18, 0, 0.55, 0.12);
+  const armR = limb(g, dark, 0.55, 1.18, 0, 0.55, 0.12);
   const handL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
-  handL.position.y = -0.5; armL.add(handL);
+  handL.position.y = -0.68; armL.add(handL);
   const handR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
-  handR.position.y = -0.5; armR.add(handR);
-  const legL = limb(g, dark, -0.18, 0.72, 0, 0.46, 0.13);
-  const legR = limb(g, dark, 0.18, 0.72, 0, 0.46, 0.13);
+  handR.position.y = -0.68; armR.add(handR);
+  const legL = limb(g, dark, -0.2, 0.62, 0, 0.62, 0.14);
+  const legR = limb(g, dark, 0.2, 0.62, 0, 0.62, 0.14);
   const footL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
-  footL.scale.set(1.15, 0.55, 1.7); footL.position.y = -0.58; legL.add(footL);
+  footL.scale.set(1.15, 0.55, 1.7); footL.position.y = -0.74; legL.add(footL);
   const footR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
-  footR.scale.set(1.15, 0.55, 1.7); footR.position.y = -0.58; legR.add(footR);
+  footR.scale.set(1.15, 0.55, 1.7); footR.position.y = -0.74; legR.add(footR);
   return { g, neck: neck.pivot, mouth, armL, armR, legL, legR };
 }
 
