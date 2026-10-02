@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Life Sim v20.3.2</title>
+<title>Life Sim v20.3.3</title>
 <style>
   html,body{margin:0;height:100%;background:#101820;overflow:hidden;font:14px/1.4 system-ui,sans-serif}
   #hud{position:fixed;left:12px;top:12px;z-index:20;width:min(390px,calc(100vw - 24px));
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="top"><span id="ver">v20.3.2</span><button id="hide">–</button></div>
+  <div id="top"><span id="ver">v20.3.3</span><button id="hide">–</button></div>
   <div class="body">
     <h1 style="font-size:16px;margin:8px 0 4px">Life Sim — cuerpos y física</h1>
     <p style="margin:0 0 8px;color:#93a4b5;font-size:12px">Articulaciones redondas, gravedad de la Tierra, aire, energía y memoria. Nada de idioma o grupos escritos.</p>
@@ -43,7 +43,7 @@
       <button id="speed">1×</button>
       <button id="reload">Actualizar</button>
     </div>
-    <div id="log">v20.3.2. La cámara se queda donde sueltas el joystick.</div>
+    <div id="log">v20.3.3. La cámara se queda donde sueltas el joystick.</div>
   </div>
 </div>
 <div id="pad"><div id="knob"></div></div>
@@ -174,15 +174,17 @@ class Net {
   }
 }
 
-function joint(parent, geo, mat, x, y, z){
-  const p = new THREE.Group();
-  p.position.set(x, y, z);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), mat);
-  p.add(ball);
-  const part = new THREE.Mesh(geo, mat);
-  p.add(part);
-  parent.add(p);
-  return { pivot: p, part };
+function limb(parent, mat, x, y, z, len, thick){
+  const pivot = new THREE.Group();
+  pivot.position.set(x, y, z);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(thick * 0.7, 10, 8), mat);
+  pivot.add(ball);
+  const bone = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), mat);
+  bone.scale.set(thick, len, thick);
+  bone.position.y = -len * 0.55;
+  pivot.add(bone);
+  parent.add(pivot);
+  return pivot;
 }
 function creature(hue){
   const g = new THREE.Group();
@@ -205,19 +207,19 @@ function creature(hue){
   const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({color:0xf0d78a}));
   mouth.position.set(0, 0.16, 0.22);
   neck.pivot.add(mouth);
-  const armL = joint(g, new THREE.SphereGeometry(0.08, 10, 8), dark, -0.42, 1.2, 0);
-  const armR = joint(g, new THREE.SphereGeometry(0.08, 10, 8), dark, 0.42, 1.2, 0);
-  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), dark);
-  handL.position.y = -0.28; armL.pivot.add(handL);
-  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), dark);
-  handR.position.y = -0.28; armR.pivot.add(handR);
-  const legL = joint(g, new THREE.SphereGeometry(0.09, 10, 8), dark, -0.16, 0.78, 0);
-  const legR = joint(g, new THREE.SphereGeometry(0.09, 10, 8), dark, 0.16, 0.78, 0);
-  const footL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dark);
-  footL.scale.set(1.1, 0.55, 1.5); footL.position.y = -0.36; legL.pivot.add(footL);
-  const footR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dark);
-  footR.scale.set(1.1, 0.55, 1.5); footR.position.y = -0.36; legR.pivot.add(footR);
-  return { g, neck: neck.pivot, mouth, armL: armL.pivot, armR: armR.pivot, legL: legL.pivot, legR: legR.pivot };
+  const armL = limb(g, dark, -0.48, 1.22, 0, 0.42, 0.11);
+  const armR = limb(g, dark, 0.48, 1.22, 0, 0.42, 0.11);
+  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
+  handL.position.y = -0.5; armL.add(handL);
+  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
+  handR.position.y = -0.5; armR.add(handR);
+  const legL = limb(g, dark, -0.18, 0.72, 0, 0.46, 0.13);
+  const legR = limb(g, dark, 0.18, 0.72, 0, 0.46, 0.13);
+  const footL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
+  footL.scale.set(1.15, 0.55, 1.7); footL.position.y = -0.58; legL.add(footL);
+  const footR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), dark);
+  footR.scale.set(1.15, 0.55, 1.7); footR.position.y = -0.58; legR.add(footR);
+  return { g, neck: neck.pivot, mouth, armL, armR, legL, legR };
 }
 
 const agents = [];
